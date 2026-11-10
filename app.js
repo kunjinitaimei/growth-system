@@ -22,7 +22,15 @@
       rest: { kcal: 3000, p: 140, c: 435, f: 72 }
     },
     days: {},
-    customFoods: []
+    customFoods: [],
+    sync: {
+      repo: 'kunjinitaimei/personal-vault',
+      branch: 'main',
+      token: '',
+      auto: true,
+      lastSync: null,
+      lastError: null
+    }
   };
 
   /* ---------------- 存储 ---------------- */
@@ -32,7 +40,9 @@
       var raw = localStorage.getItem(KEY);
       if (!raw) return clone(DEFAULT_STATE);
       var s = JSON.parse(raw);
-      return Object.assign(clone(DEFAULT_STATE), s);
+      var out = Object.assign(clone(DEFAULT_STATE), s);
+      out.sync = Object.assign(clone(DEFAULT_STATE.sync), s.sync || {});
+      return out;
     } catch (e) { return clone(DEFAULT_STATE); }
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -99,6 +109,8 @@
   var tab = 'today';
   var logDate = todayKey();
   var foodQ = '', foodCat = '全部';
+  var mTab = /[?&]tab=(\w+)/.exec(location.search);
+  if (mTab && ['today', 'log', 'foods', 'me'].indexOf(mTab[1]) > -1) tab = mTab[1];
 
   /* ---------------- 渲染 ---------------- */
   var view = document.getElementById('view');
@@ -299,12 +311,27 @@
     '</section>';
 
     s += '<section class="card">' +
-      '<div class="card-head"><h2>数据</h2><span class="hint">只存在本机浏览器</span></div>' +
-      '<div class="btns">' +
-        '<button class="solid" data-act="export">导出备份</button>' +
-        '<button class="ghost" data-act="import">导入备份</button>' +
+      '<div class="card-head"><h2>自动备份</h2><span class="hint" id="sync-state">' + syncLabel() + '</span></div>' +
+      '<div class="form">' +
+        '<label class="frow-in"><span>私有库</span>' +
+          '<input data-bind="sync.repo" type="text" value="' + esc(state.sync.repo) + '" placeholder="用户名/仓库名"></label>' +
+        '<label class="frow-in"><span>令牌</span>' +
+          '<input data-bind="sync.token" type="password" value="' + esc(state.sync.token) + '" placeholder="github_pat_..."></label>' +
+        '<label class="frow-in"><span>自动同步</span>' +
+          '<input id="sync-auto" type="checkbox"' + (state.sync.auto ? ' checked' : '') + ' style="flex:0 0 auto;width:22px;height:22px;accent-color:#C6FF3D"><i></i></label>' +
       '</div>' +
-      '<p class="note">换手机或换浏览器前先导出，导入后数据完整恢复。清缓存会丢数据，记得每周导一次。</p>' +
+      '<div class="btns"><button class="solid" data-act="syncnow">立即同步</button>' +
+        '<button class="ghost" data-act="restore">从云端恢复</button></div>' +
+      '<p class="note">记录会自动写进你的私有仓库，只有你能看。换手机时把仓库名和令牌填回来，点「从云端恢复」。令牌只保存在这台设备浏览器里。</p>' +
+    '</section>';
+
+    s += '<section class="card">' +
+      '<div class="card-head"><h2>手动备份</h2><span class="hint">不依赖令牌</span></div>' +
+      '<div class="btns">' +
+        '<button class="solid" data-act="export">导出文件</button>' +
+        '<button class="ghost" data-act="import">导入文件</button>' +
+      '</div>' +
+      '<p class="note">没有网络或不想用令牌时，导出 JSON 存网盘，换设备后再导入。</p>' +
     '</section>';
 
     s += '<div class="foot">成长系统 · 饮食模块 v1<br>下一个模块：训练 → 学习</div>';
@@ -416,7 +443,7 @@
       var dd = day(todayKey());
       dd.water = Math.max(0, (dd.water || 0) + (+el.dataset.d) * WATER_STEP);
       if (dd.water > WATER_GOAL * 2) dd.water = WATER_GOAL * 2;
-      save(); render(); return;
+      save(); render(); queueSync(); return;
     }
     if (act === 'weigh') { askWeight(); return; }
     if (act === 'quickadd') { tab = 'foods'; render(); document.getElementById('foodQ').focus(); return; }
@@ -424,7 +451,7 @@
     if (act === 'del') {
       var dk = day(logDate);
       dk.meals[el.dataset.meal].splice(+el.dataset.i, 1);
-      save(); render(); toast('已删除'); return;
+      save(); render(); toast('已删除'); queueSync(); return;
     }
     if (act === 'cat') { foodCat = el.dataset.cat; render(); return; }
     if (act === 'pick') { openPortion(el.dataset.id, window.__mealPick); window.__mealPick = null; return; }
@@ -440,7 +467,7 @@
         kcal: r1(f.kcal * g / 100), p: r1(f.p * g / 100),
         c: r1(f.c * g / 100), f: r1(f.f * g / 100)
       });
-      save(); closeSheet(); render(); toast('已加入' + nameOf(curMeal)); return;
+      save(); closeSheet(); render(); toast('已加入' + nameOf(curMeal)); queueSync(); return;
     }
     if (act === 'closesheet') { closeSheet(); return; }
     if (act === 'newfood') { openCustom(); return; }
@@ -468,9 +495,20 @@
     }
     if (act === 'export') { exportData(); return; }
     if (act === 'import') { importData(); return; }
+    if (act === 'syncnow') { syncDay(todayKey()); return; }
+    if (act === 'restore') { restoreAll(); return; }
   });
 
   mask.addEventListener('click', closeSheet);
+
+  document.addEventListener('change', function (e) {
+    if (e.target.id === 'sync-auto') {
+      state.sync.auto = e.target.checked;
+      save();
+      setSyncState(syncLabel());
+      if (e.target.checked) queueSync();
+    }
+  });
 
   document.addEventListener('input', function (e) {
     if (e.target.id === 'foodQ') {
@@ -491,10 +529,128 @@
         state.targets[p[1]][p[2]] = v;
       } else if (bind.indexOf('profile.') === 0) {
         state.profile[bind.split('.')[1]] = v;
+      } else if (bind.indexOf('sync.') === 0) {
+        state.sync[bind.split('.')[1]] = v;
       }
       save();
     }
   });
+
+  /* ---------------- GitHub 私有库自动备份 ---------------- */
+  var DATA_DIR = 'data/diet/';
+  var syncTimer = null, syncing = false;
+
+  function syncReady() {
+    var s = state.sync || {};
+    return !!(s.repo && s.token && String(s.token).length > 20);
+  }
+  function apiUrl(path) {
+    return 'https://api.github.com/repos/' + state.sync.repo + '/contents/' + path;
+  }
+  function headers() {
+    return {
+      'Authorization': 'Bearer ' + state.sync.token,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    };
+  }
+  function b64enc(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64dec(b) { return decodeURIComponent(escape(atob(String(b).replace(/\s/g, '')))); }
+  function timeOf(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function setSyncState(text) {
+    var el = document.getElementById('sync-state');
+    if (el) el.textContent = text;
+  }
+  function syncLabel() {
+    var s = state.sync || {};
+    if (!syncReady()) return '未配置';
+    if (s.lastError) return '上次失败';
+    if (s.lastSync) return '上次 ' + timeOf(s.lastSync);
+    return '待同步';
+  }
+
+  function queueSync() {
+    if (!state.sync.auto || !syncReady()) return;
+    setSyncState('等待同步…');
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () { syncDay(todayKey()); }, 1200);
+  }
+
+  function syncDay(k) {
+    if (syncing) return Promise.resolve();
+    if (!syncReady()) { setSyncState('未配置'); return Promise.resolve(); }
+    syncing = true;
+    setSyncState('同步中…');
+    var path = DATA_DIR + k + '.json';
+    var body = JSON.stringify({ date: k, updatedAt: new Date().toISOString(), day: state.days[k] || null }, null, 1);
+
+    return getFile(path).then(function (info) {
+      var payload = {
+        message: 'diet: ' + k,
+        content: b64enc(body),
+        branch: state.sync.branch || 'main'
+      };
+      if (info && info.sha) payload.sha = info.sha;
+      return fetch(apiUrl(path), { method: 'PUT', headers: headers(), body: JSON.stringify(payload) });
+    }).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { throw new Error(r.status + ' ' + t.slice(0, 100)); });
+      state.sync.lastSync = new Date().toISOString();
+      state.sync.lastError = null;
+      save();
+      setSyncState('已同步 ' + timeOf(state.sync.lastSync));
+      toast('已备份到私有库');
+    }).catch(function (err) {
+      state.sync.lastError = String(err.message || err);
+      save();
+      setSyncState('失败 ' + state.sync.lastError.slice(0, 30));
+    }).then(function () { syncing = false; });
+  }
+
+  function getFile(path) {
+    return fetch(apiUrl(path) + '?ref=' + (state.sync.branch || 'main'), { headers: headers() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  function restoreAll() {
+    if (!syncReady()) { toast('先填仓库和令牌'); return; }
+    setSyncState('拉取中…');
+    var dir = apiUrl(DATA_DIR) + '?ref=' + (state.sync.branch || 'main');
+    fetch(dir, { headers: headers() })
+      .then(function (r) {
+        if (r.status === 404) throw new Error('云端还没有数据目录');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (list) {
+        if (!Array.isArray(list)) throw new Error('返回格式不对');
+        var files = list.filter(function (f) { return /\.json$/.test(f.name); });
+        if (!files.length) throw new Error('云端还没有记录');
+        return Promise.all(files.map(function (f) {
+          return fetch(f.url, { headers: headers() }).then(function (r) { return r.json(); });
+        }));
+      })
+      .then(function (items) {
+        var n = 0;
+        items.forEach(function (it) {
+          try {
+            var obj = JSON.parse(b64dec(it.content));
+            if (obj && obj.date && obj.day && !state.days[obj.date]) { state.days[obj.date] = obj.day; n++; }
+          } catch (e) { }
+        });
+        save(); render();
+        setSyncState('已恢复 ' + n + ' 天');
+        toast(n ? '已恢复 ' + n + ' 天记录' : '本地已是最新');
+      })
+      .catch(function (err) {
+        setSyncState('拉取失败 ' + String(err.message || err).slice(0, 28));
+        toast('拉取失败');
+      });
+  }
 
   function askWeight() {
     var w = prompt('今天的体重（kg）', state.profile.weight);
@@ -504,7 +660,7 @@
     var d = day(todayKey());
     d.weight = r1(n);
     state.profile.weight = r1(n);
-    save(); render(); toast('已记录体重');
+    save(); render(); toast('已记录体重'); queueSync();
   }
 
   function exportData() {
