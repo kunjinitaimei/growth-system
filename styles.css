@@ -702,3 +702,118 @@ body::before {
 @media (min-width: 520px) {
   .app { padding-top: 8px; }
 }
+
+/* ---------- 学习 ---------- */
+.steps { display: flex; flex-direction: column; gap: 2px; }
+
+.steprow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.steprow:last-child { border-bottom: 0; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  flex: 0 0 auto;
+}
+.dot.on { background: var(--lime); box-shadow: 0 0 10px rgba(198, 255, 61, 0.6); }
+
+.stepn { font-size: 13px; font-weight: 600; }
+.stepv { margin-left: auto; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+.idx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 7px;
+  border-radius: 6px;
+  background: var(--lime-dim);
+  color: var(--lime);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+.words-row { display: flex; align-items: center; gap: 8px; }
+.words-row input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--lime);
+  font-family: inherit;
+  font-size: 26px;
+  font-weight: 800;
+  text-align: center;
+  padding: 8px 0;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.sq {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 44px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ta {
+  width: 100%;
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 11px 13px;
+  outline: none;
+  resize: vertical;
+}
+.ta:focus { border-color: rgba(198, 255, 61, 0.35); }
+.ta::placeholder { color: #4E5A51; }
+
+.btns { display: flex; gap: 8px; margin-top: 12px; }
+.btns button { flex: 1; }
+
+.aibox {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(198, 255, 61, 0.16);
+  border-radius: 16px;
+  background: rgba(198, 255, 61, 0.04);
+}
+.aibox-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.04em;
+}
+.aibox .ta { margin-top: 8px; background: rgba(0, 0, 0, 0.25); }
+
+.linkbtn {
+  background: transparent;
+  border: 0;
+  color: var(--lime);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 0;
+}
+
+.stepitem { padding: 11px 0; border-bottom: 1px solid var(--line); }
+.stepitem:last-child { border-bottom: 0; padding-bottom: 0; }
+.stept { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.stepd { font-size: 11px; color: var(--dim); line-height: 1.75; }

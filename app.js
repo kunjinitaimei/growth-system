@@ -22,6 +22,7 @@
       rest: { kcal: 3000, p: 140, c: 435, f: 72 }
     },
     days: {},
+    study: { days: {} },
     customFoods: [],
     sync: {
       repo: 'kunjinitaimei/personal-vault',
@@ -42,6 +43,7 @@
       var s = JSON.parse(raw);
       var out = Object.assign(clone(DEFAULT_STATE), s);
       out.sync = Object.assign(clone(DEFAULT_STATE.sync), s.sync || {});
+      out.study = { days: (s.study && s.study.days) || {} };
       return out;
     } catch (e) { return clone(DEFAULT_STATE); }
   }
@@ -110,13 +112,14 @@
   var logDate = todayKey();
   var foodQ = '', foodCat = '全部';
   var mTab = /[?&]tab=(\w+)/.exec(location.search);
-  if (mTab && ['today', 'log', 'foods', 'me'].indexOf(mTab[1]) > -1) tab = mTab[1];
+  if (mTab && ['today', 'study', 'log', 'foods', 'me'].indexOf(mTab[1]) > -1) tab = mTab[1];
 
   /* ---------------- 渲染 ---------------- */
   var view = document.getElementById('view');
 
   function render() {
     if (tab === 'today') view.innerHTML = viewToday();
+    else if (tab === 'study') view.innerHTML = viewStudy();
     else if (tab === 'log') view.innerHTML = viewLog();
     else if (tab === 'foods') view.innerHTML = viewFoods();
     else view.innerHTML = viewMe();
@@ -229,6 +232,191 @@
     return out + '</div>';
   }
 
+  /* ---------------- 学习模块 ---------------- */
+  var SUBJECTS = [
+    { id: 'english', name: '英语' },
+    { id: 'anatomy', name: '运动解剖' },
+    { id: 'reading', name: '自由阅读' }
+  ];
+  var ANATOMY_STEPS = [
+    { t: '第 1 步 · 建骨架', d: '只认骨骼和四个关节：肩、髋、膝、踝。今天从膝开始——股骨、胫骨、髌骨，先在书上找到，再摸自己的膝盖对上。' },
+    { t: '第 2 步 · 挂肌肉', d: '每块肌肉只记三件事：起点、止点、功能。别背整段文字，用手在自己身上找出位置，摸到了才算会。' },
+    { t: '第 3 步 · 配图谱', d: '教材配一本彩色图谱（奈特）或手机装 Complete Anatomy 看 3D。文字 + 图像 + 手感，三条一起记才留得住。' },
+    { t: '第 4 步 · 再啃难的', d: '神经、循环、生物力学放到最后。前面三样不牢，直接看这些只会挫败。' }
+  ];
+
+  function subjectName(id) {
+    var s = SUBJECTS.filter(function (x) { return x.id === id; })[0];
+    return s ? s.name : '英语';
+  }
+  function studyDay(k) {
+    k = k || todayKey();
+    if (!state.study) state.study = { days: {} };
+    if (!state.study.days[k]) state.study.days[k] = { words: 0, read: null, out: null };
+    var d = state.study.days[k];
+    if (!d.read) d.read = { subject: 'english', minutes: 0, key: '' };
+    if (!d.out) d.out = { subject: 'english', text: '', feedback: '' };
+    return d;
+  }
+  function studyDone(k) {
+    var d = studyDay(k), n = 0;
+    if (d.words > 0) n++;
+    if (d.read.minutes > 0 || d.read.key) n++;
+    if (d.out.text) n++;
+    return n;
+  }
+  function setStudy(path, v) {
+    var d = studyDay(todayKey()), p = path.split('.');
+    if (p.length === 1) d[p[0]] = v; else d[p[0]][p[1]] = v;
+    save();
+    var badge = document.getElementById('st-badge');
+    if (badge) badge.textContent = '今日 ' + studyDone() + '/3';
+    queueSync();
+  }
+
+  function viewStudy() {
+    var k = todayKey(), d = studyDay(k), done = studyDone(k);
+    var s = head('四级 → 六级 → 雅思', '学习',
+      '<div class="pill" id="st-badge">今日 ' + done + '/3</div>');
+
+    s += '<section class="card"><div class="card-head"><h2>今天三件事</h2><span class="hint">20 分钟能做完</span></div>' +
+      '<div class="steps">' +
+        stepRow('单词', d.words > 0 ? d.words + ' 个' : '未做', d.words > 0) +
+        stepRow('精读', d.read.minutes > 0 ? subjectName(d.read.subject) + ' · ' + d.read.minutes + ' 分钟' : '未做', d.read.minutes > 0 || !!d.read.key) +
+        stepRow('输出', d.out.text ? '已写 ' + d.out.text.length + ' 字' : '未做', !!d.out.text) +
+      '</div>' +
+      '<p class="note">只看课、只背词是纯输入，考场上考的是你能不能读懂、写得出。第二、三项才是提分的地方。</p>' +
+    '</section>';
+
+    /* 1 单词 */
+    s += '<section class="card"><div class="card-head"><h2><i class="idx">1</i>单词</h2><span class="hint">今天背了多少个</span></div>' +
+      '<div class="words-row">' +
+        '<button class="ghost sq" data-act="words" data-d="-10">−10</button>' +
+        '<input id="sw-words" data-study="words" type="number" inputmode="numeric" value="' + (d.words || 0) + '">' +
+        '<button class="ghost sq" data-act="words" data-d="10">+10</button>' +
+      '</div>' +
+    '</section>';
+
+    /* 2 精读 */
+    s += '<section class="card"><div class="card-head"><h2><i class="idx">2</i>精读一段</h2><span class="hint">看不懂的句子才是重点</span></div>' +
+      '<div class="chips">' + SUBJECTS.map(function (x) {
+        return '<button class="chip' + (d.read.subject === x.id ? ' on' : '') + '" data-act="rsub" data-s="' + x.id + '">' + x.name + '</button>';
+      }).join('') + '</div>' +
+      '<label class="frow-in" style="margin-top:12px"><span>时长</span>' +
+        '<input data-study="read.minutes" type="number" inputmode="numeric" value="' + (d.read.minutes || '') + '"><i>分钟</i></label>' +
+      '<textarea class="ta" data-study="read.key" rows="3" placeholder="' + (d.read.subject === 'anatomy'
+        ? '今天看懂的结构 / 起止点 / 功能，用自己的话写'
+        : '抄一句今天没看懂的句子，写下你的理解') + '">' + esc(d.read.key) + '</textarea>' +
+    '</section>';
+
+    /* 3 输出 + AI 批改 */
+    s += '<section class="card"><div class="card-head"><h2><i class="idx">3</i>输出</h2><span class="hint">这一步决定你有没有进步</span></div>' +
+      '<div class="chips">' + SUBJECTS.map(function (x) {
+        return '<button class="chip' + (d.out.subject === x.id ? ' on' : '') + '" data-act="osub" data-s="' + x.id + '">' + x.name + '</button>';
+      }).join('') + '</div>' +
+      '<textarea class="ta" data-study="out.text" rows="4" placeholder="' + (d.out.subject === 'anatomy'
+        ? '用三句话说清今天这个结构：它在哪、连着谁、干什么'
+        : '写 2 句英文：今天做的一件具体的事 + 你的感受') + '">' + esc(d.out.text) + '</textarea>' +
+      '<div class="btns">' +
+        '<button class="solid" data-act="aisend">交给 AI 批改</button>' +
+        '<button class="ghost" data-act="deepseek">打开 DeepSeek</button>' +
+      '</div>' +
+      '<div class="aibox">' +
+        '<div class="aibox-h"><span>AI 批改结果</span><button class="linkbtn" data-act="aipaste">粘贴回答</button></div>' +
+        '<textarea class="ta" data-study="out.feedback" rows="5" placeholder="点上面「交给 AI 批改」→ 到 DeepSeek 粘贴、发送 → 复制回答 → 回来点「粘贴回答」">' + esc(d.out.feedback) + '</textarea>' +
+      '</div>' +
+    '</section>';
+
+    /* 近 7 天 */
+    s += '<section class="card"><div class="card-head"><h2>近 7 天</h2><span class="hint">每天完成几项</span></div>' +
+      '<div class="bars">' + studyBars() + '</div></section>';
+
+    /* 解剖路线 */
+    s += '<section class="card"><div class="card-head"><h2>运动解剖学 · 从哪入手</h2><span class="hint">别从第一页读</span></div>' +
+      ANATOMY_STEPS.map(function (x) {
+        return '<div class="stepitem"><div class="stept">' + x.t + '</div><div class="stepd">' + x.d + '</div></div>';
+      }).join('') +
+    '</section>';
+
+    return s;
+  }
+
+  function stepRow(name, val, on) {
+    return '<div class="steprow"><span class="dot' + (on ? ' on' : '') + '"></span>' +
+      '<span class="stepn">' + name + '</span><span class="stepv">' + val + '</span></div>';
+  }
+  function studyBars() {
+    var out = '';
+    for (var i = 6; i >= 0; i--) {
+      var k = shiftKey(todayKey(), -i), n = studyDone(k);
+      var dt = parseKey(k);
+      out += '<div class="barcol"><div class="barcol-track"><span style="height:' + Math.round(n / 3 * 100) + '%"></span></div>' +
+        '<div class="barcol-lb">' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</div></div>';
+    }
+    return out;
+  }
+
+  function buildPrompt(d) {
+    var body = d.out.text.trim();
+    if (d.out.subject === 'anatomy') {
+      return '你是运动解剖学老师，要求严格。下面是我今天的复述，请：\n' +
+        '1) 逐条指出事实性错误（结构名称、起止点、功能）\n' +
+        '2) 补充我漏掉的关键点，不超过 3 条\n' +
+        '3) 最后用一句话指出我最该补的短板\n' +
+        '不要客套，直接给结论。\n\n我的复述：\n"""\n' + body + '\n"""';
+    }
+    if (d.out.subject === 'reading') {
+      return '你是我的阅读教练。下面是我今天读书后的输出，请：\n' +
+        '1) 指出我理解偏了或漏掉的地方\n' +
+        '2) 提 2 个能逼我想得更深的问题\n' +
+        '3) 一句话说明我该往哪个方向继续读\n' +
+        '不要客套。\n\n我的输出：\n"""\n' + body + '\n"""';
+    }
+    return '你是我的英语老师，要求严格。下面是我今天写的英文，请：\n' +
+      '1) 逐句指出语法和用词错误，给出修改\n' +
+      '2) 给一个更地道的版本\n' +
+      '3) 用一句话指出我最该改的一个毛病\n' +
+      '不要客套，直接给结论。\n\n我写的：\n"""\n' + body + '\n"""';
+  }
+
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () {
+        toast('提示词已复制，去 DeepSeek 粘贴');
+      }, function () { fallbackCopy(t); });
+    } else fallbackCopy(t);
+  }
+  function fallbackCopy(t) {
+    var a = document.createElement('textarea');
+    a.value = t; a.style.position = 'fixed'; a.style.opacity = '0';
+    document.body.appendChild(a); a.select();
+    try { document.execCommand('copy'); toast('提示词已复制'); } catch (e) { toast('复制失败，请手动选择'); }
+    document.body.removeChild(a);
+  }
+
+  function aiSend() {
+    var d = studyDay(todayKey());
+    if (!d.out.text.trim()) { toast('先写下今天的输出'); return; }
+    var p = buildPrompt(d);
+    if (navigator.share) {
+      navigator.share({ text: p }).catch(function () { copyText(p); });
+    } else copyText(p);
+  }
+
+  function aiPaste() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      toast('这个浏览器不能读剪贴板，请长按下面输入框手动粘贴'); return;
+    }
+    navigator.clipboard.readText().then(function (t) {
+      if (!t || !t.trim()) { toast('剪贴板是空的'); return; }
+      setStudy('out.feedback', t.trim());
+      render();
+      toast('已粘入批改结果');
+    }, function () {
+      toast('读取被拒绝，请长按输入框手动粘贴');
+    });
+  }
+
   function viewLog() {
     var d = day(logDate), t = totals(logDate), tg = target(logDate);
     var s = head(dateLabel(logDate), '记录',
@@ -334,7 +522,7 @@
       '<p class="note">没有网络或不想用令牌时，导出 JSON 存网盘，换设备后再导入。</p>' +
     '</section>';
 
-    s += '<div class="foot">成长系统 · 饮食模块 v1<br>下一个模块：训练 → 学习</div>';
+    s += '<div class="foot">成长系统 · 饮食 + 学习<br>下一个模块：训练</div>';
     return s;
   }
 
@@ -493,6 +681,17 @@
       if (a && a.trim()) { state.profile.avoid = (state.profile.avoid || []).concat([a.trim()]); save(); render(); }
       return;
     }
+    if (act === 'words') {
+      var sd = studyDay(todayKey());
+      var nw = num(sd.words, 0) + (+el.dataset.d);
+      setStudy('words', nw < 0 ? 0 : nw);
+      render(); return;
+    }
+    if (act === 'rsub') { setStudy('read.subject', el.dataset.s); render(); return; }
+    if (act === 'osub') { setStudy('out.subject', el.dataset.s); render(); return; }
+    if (act === 'aisend') { aiSend(); return; }
+    if (act === 'deepseek') { window.open('https://chat.deepseek.com/', '_blank'); return; }
+    if (act === 'aipaste') { aiPaste(); return; }
     if (act === 'export') { exportData(); return; }
     if (act === 'import') { importData(); return; }
     if (act === 'syncnow') { syncDay(todayKey()); return; }
@@ -519,6 +718,11 @@
         qi.focus();
         qi.setSelectionRange(qi.value.length, qi.value.length);
       }
+      return;
+    }
+    var stPath = e.target.getAttribute && e.target.getAttribute('data-study');
+    if (stPath) {
+      setStudy(stPath, e.target.type === 'number' ? num(e.target.value, 0) : e.target.value);
       return;
     }
     var bind = e.target.getAttribute && e.target.getAttribute('data-bind');
@@ -586,7 +790,8 @@
     syncing = true;
     setSyncState('同步中…');
     var path = DATA_DIR + k + '.json';
-    var body = JSON.stringify({ date: k, updatedAt: new Date().toISOString(), day: state.days[k] || null }, null, 1);
+    var body = JSON.stringify({ date: k, updatedAt: new Date().toISOString(), day: state.days[k] || null,
+      study: (state.study && state.study.days && state.study.days[k]) || null }, null, 1);
 
     return getFile(path).then(function (info) {
       var payload = {
@@ -640,6 +845,7 @@
           try {
             var obj = JSON.parse(b64dec(it.content));
             if (obj && obj.date && obj.day && !state.days[obj.date]) { state.days[obj.date] = obj.day; n++; }
+            if (obj && obj.date && obj.study && !state.study.days[obj.date]) { state.study.days[obj.date] = obj.study; }
           } catch (e) { }
         });
         save(); render();
