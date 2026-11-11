@@ -13,83 +13,186 @@
   var WATER_STEP = 250, WATER_GOAL = 3000;
   var DAY_CN = ['日', '一', '二', '三', '四', '五', '六'];
 
-  /* 七天计划：按 getDay() 取，0 = 周日 */
-  var TRAIN_PLAN = [
+  /* 有球线：12 次一循环，不绑日期，按「第 N 次」往前推 */
+  var BALL_SESSIONS = [
     {
-      tag: '复盘', short: '复盘', title: '复盘 + 恢复',
-      main: { name: '周复盘', big: '20', unit: 'MIN', small: '录像 · 只找一个问题' },
-      brief: '今天不加量，把这一周看清楚。看 20 分钟录像，只找<b>你丢球前的那一步</b>：是左手被逼到边线、抬头太晚，还是出球慢半拍——写下来一条，下周就练它。',
-      items: [
-        { t: '看录像 20 分钟', d: '只看丢球回合，别整场刷' },
-        { t: '称体重 + 拍照', d: '早起空腹，同一时间、同一光线' },
-        { t: '膝康复 3 组', d: '直腿抬高 15 · 靠墙静蹲 45 秒 · 单腿站 30 秒' },
-        { t: '只写下周一个目标', d: '要能验证，比如「卧推 32.5kg 做满 4×6」' }
+      t: '控球基础 · 低重心', big: '60', unit: 'MIN', small: '5 个 block · 左手为主',
+      brief: '刚回球场别急着得分。这一练只做一件事：<b>把球压到膝盖以下，眼睛离开球</b>。左手如果总掉球，就把它当主力手练。',
+      blocks: [
+        { t: '动态热身', d: '8 分钟：高抬腿 2×20 米 · 侧滑步 2×15 米 · 弓步走 2×10 米（膝刺痛就停）' },
+        { t: '原地控球', d: '12 分钟：右手 4 分 / 左手 4 分 / 交替 4 分，运球不过膝，全程抬头' },
+        { t: '移动控球', d: '15 分钟：全场直线 6 趟 · Z 字 6 趟 · 后退 4 趟，左手占一半' },
+        { t: '组合动作', d: '15 分钟：胯下 8 字 3×30 秒 · 背后交替 3×30 秒 · in&out 3×20 次' },
+        { t: '罚球 + 冷身', d: '10 分钟：罚球 50 个记命中 · 小腿与髋前侧各拉伸 2 分钟' }
       ]
     },
     {
-      tag: '上肢推', short: '推', title: '上肢推 · 卧推',
-      main: { name: '卧推', big: '30', unit: 'KG', small: '4 组 × 6 次' },
-      brief: '上周 27.5kg 稳稳做满 4×6，今天加到 <b>30kg</b>。最后一组还能多做两次，就是「有余」，下周继续加；最后两次要人扶，就退回 27.5kg 把五组做满。',
-      items: [
-        { t: '卧推 30kg 4×6', d: '肩胛后收下沉，杠铃碰胸再推' },
-        { t: '哑铃肩推 3×10', d: '坐姿背贴靠垫，别塌腰借力' },
-        { t: '绳索下压 3×12', d: '肘固定在体侧，只有小臂动' },
-        { t: '面拉 3×15', d: '拉到脸两侧，收住肩后束' }
+      t: '变向节奏 · 交叉 / 胯下 / 背后', big: '65', unit: 'MIN', small: '脚先到 · 球后到',
+      brief: '变向不是把球拍得更快，是<b>脚先到、球后到</b>。每个动作都要求：先迈脚，再推球，最后压肩。慢一点做对，比快一点做乱值钱。',
+      blocks: [
+        { t: '热身', d: '8 分钟：跳绳 2×60 秒 · 八字绕膝 20 次 · 髋部绕环各 10 次' },
+        { t: '原地变向', d: '12 分钟：交叉 3×30 秒 · 胯下 3×30 秒 · 背后 3×30 秒，左右各一轮' },
+        { t: '移动变向', d: '18 分钟：标志桶 5 个，每桶一个动作，来回 6 趟，左手先做' },
+        { t: '变向第一步', d: '12 分钟：1 对 0，每次变向后必须第一步过人，不许原地绕' },
+        { t: '冷身', d: '10 分钟：慢跑 3 分钟 + 股四头、髂胫束、臀肌各拉伸 2 分钟' }
       ]
     },
     {
-      tag: '球 · 左手', short: '左手', title: '球场 · 左手',
-      main: { name: '左手运球', big: '15', unit: 'MIN', small: '眼睛看前方，不看球' },
-      brief: '左手是你要吃三年的饭。今天不做花活：原地运球 15 分钟，<b>眼睛看前方</b>；然后罚球 50 个，只数进了几个。数据比感觉诚实。',
-      items: [
-        { t: '左手原地运球 15 分钟', d: '低运球 + 体前变向，全程抬头' },
-        { t: '罚球 50 个', d: '每组 10 个，记命中数' },
-        { t: '左手启动变向 10×2', d: '压低重心，第一步要快' },
-        { t: '拉伸 8 分钟', d: '小腿、髋前侧、胸椎' }
+      t: '三威胁 · 第一步', big: '65', unit: 'MIN', small: '探步短 · 第一步长',
+      brief: '控卫的第一步决定你有没有下一拍。<b>接球先三威胁，脚尖朝篮，探步要短</b>——探步是为了让防守人动，不是为了过人。',
+      blocks: [
+        { t: '热身 + 球感', d: '10 分钟：绕腰 20 圈 · 指尖拨球 2 分钟 · 三威胁姿势 10 次' },
+        { t: '探步启动', d: '15 分钟：左/右探步各 3×10 次，探完必须第一步跨出去' },
+        { t: '直线突破', d: '15 分钟：三分线一步到罚球线 10 趟，左右各 5' },
+        { t: '急停收球', d: '15 分钟：突破 2 步急停，收球护在胸前 10 次×2' },
+        { t: '罚球 + 冷身', d: '10 分钟：罚球 50 个，记命中' }
       ]
     },
     {
-      tag: '下肢', short: '腿', title: '下肢 · 护膝',
-      main: { name: '箱式半蹲', big: '52.5', unit: 'KG', small: '5 组 × 5 次' },
-      brief: '术后的膝不靠感觉，靠箱子。<b>坐到箱子上停半秒</b>再起，屁股先发力，膝盖别内扣。52.5kg 是你现在的 PR，先把 5×5 做干净，再谈加重。',
-      items: [
-        { t: '箱式半蹲 52.5kg 5×5', d: '触箱停半秒，膝不内扣' },
-        { t: '罗马尼亚硬拉 3×8', d: '髋往后坐，背别圆' },
-        { t: '单腿臀桥 3×12', d: '每侧，顶住 2 秒' },
-        { t: '提踵 3×20', d: '慢下快上，做满幅度' }
+      t: '两侧手终结', big: '70', unit: 'MIN', small: '左手先练 · 不加花活',
+      brief: '比赛里没人管你哪只手舒服。<b>左手先从不擅长的那一侧练起</b>：先慢速打板，再加干扰，最后才谈对抗。',
+      blocks: [
+        { t: '热身', d: '8 分钟：动态拉伸 + 原地低运球 2 分钟' },
+        { t: '篮下打板', d: '15 分钟：右手 20 个 / 左手 20 个，只用打板，不加运球' },
+        { t: '一步上篮', d: '15 分钟：左右各 15 次，起跳脚固定，双脚落地' },
+        { t: '反手 + 欧洲步', d: '15 分钟：每侧 10 次，护球手抬起' },
+        { t: '罚球 + 冰敷', d: '12 分钟：罚球 30 个；左膝冰敷 10 分钟' }
       ]
     },
     {
-      tag: '恢复', short: '康复', title: '休息 · 膝康复',
-      main: { name: '膝康复', big: '45', unit: 'MIN', small: '4 个动作 · 每个数到 3 秒' },
-      brief: '休息日不是什么都不做。膝要的是<b>血</b>，不是重量——康复动作做慢，每个都数到 3 秒，做完大腿前侧发热才对。',
-      items: [
-        { t: '直腿抬高 3×15', d: '膝伸直，抬到 45° 停 3 秒' },
-        { t: '靠墙静蹲 3×45 秒', d: '膝不超过脚尖，酸了也别塌' },
-        { t: '单腿平衡 3×30 秒', d: '闭眼更难，护膝必练' },
-        { t: '泡沫轴 大腿前侧 5 分钟', d: '慢滚，痛点停 20 秒' }
+      t: '抛投与对抗终结', big: '65', unit: 'MIN', small: '抛投 100 个 · 记命中',
+      brief: '小个换防、大个补防，控卫最后靠的是<b>抛投</b>。今天抛投 100 个，命中不到 50 个就加练 30 个——用数据逼自己。',
+      blocks: [
+        { t: '热身', d: '8 分钟：动态拉伸 + 篮下投篮 20 个找手感' },
+        { t: '原地抛投', d: '15 分钟：距篮 3 米，左右各 25 个，手腕最后拨球' },
+        { t: '一步抛投', d: '15 分钟：运一步起，左右各 20 个' },
+        { t: '对抗终结', d: '15 分钟：有人举手干扰，篮下 10 次×3 组，护球在前' },
+        { t: '罚球 + 冷身', d: '10 分钟：罚球 30 个 + 拉伸' }
       ]
     },
     {
-      tag: '上肢拉', short: '拉', title: '上肢拉 · 引体',
-      main: { name: '引体向上', big: '待测', unit: '', small: '自重 · 3 组到力竭' },
-      brief: '今天先做一件事：<b>测出你的引体极限</b>，写进下面的身体反馈。做不满五个就先做离心——跳上去，用 5 秒慢慢放下来，比硬拉省时间。',
-      items: [
-        { t: '引体向上 3 组到力竭', d: '记下第一组做了几个' },
-        { t: '单臂哑铃划船 3×10', d: '每侧，肘贴身体往后拉' },
-        { t: '哑铃弯举 3×12', d: '不甩，慢放' },
-        { t: '农夫走 3×30 米', d: '肩不耸，走直' }
+      t: '接球投篮机制', big: '60', unit: 'MIN', small: '接球即出手 · 不运球调整',
+      brief: '投篮是脚的事，不是手的事。<b>接球前脚尖就朝篮</b>，接球即起，别先落地再瞄。今天不许运球调整。',
+      blocks: [
+        { t: '热身 + 定点', d: '10 分钟：篮下 20 个、罚球线 20 个，找手感' },
+        { t: '接球投篮', d: '15 分钟：五个点各 10 个，接球即出手' },
+        { t: '移动接球', d: '15 分钟：底线绕出接球，左右各 10 个' },
+        { t: '三分', d: '12 分钟：弧顶 + 两个 45 度，各 15 个，记命中' },
+        { t: '罚球 + 冷身', d: '8 分钟：罚球 20 个 + 肩部拉伸' }
       ]
     },
     {
-      tag: '球 · 突破', short: '突破', title: '球场 · 突破',
-      main: { name: '左手突破', big: '10', unit: '×2', small: '对抗下完成 · 两组' },
-      brief: '把周二的左手带到有人防的地方。左手突破 10 次一组，做两组；最后加 100 个定点三分，<b>只数进的</b>。累的时候动作才是真的。',
-      items: [
-        { t: '左手突破 10×2', d: '对抗下完成，别躲' },
-        { t: '篮下换手终结 10×2', d: '起跳前护球' },
-        { t: '定点三分 100 个', d: '五个点，每点 20 个' },
-        { t: '冰敷左膝 10 分钟', d: '练完就做，别等肿' }
+      t: '运一步急停', big: '65', unit: 'MIN', small: '双脚落地 · 球在胸口',
+      brief: '控卫的杀招是<b>运一步就停</b>。停不稳，后面所有选择都不存在。每个急停都要求：双脚落地、身体不后仰、球在胸口。',
+      blocks: [
+        { t: '热身', d: '8 分钟：动态拉伸 + 低运球 2 分钟' },
+        { t: '原地急停', d: '12 分钟：运一步急停 15 次×2，左右各一组' },
+        { t: '急停跳投', d: '18 分钟：中距离左右各 15 个，只数命中' },
+        { t: '急停后传球', d: '12 分钟：急停→击地给内线 10 次×2' },
+        { t: '罚球 + 冷身', d: '10 分钟：罚球 30 个 + 拉伸' }
+      ]
+    },
+    {
+      t: '挡拆阅读', big: '70', unit: 'MIN', small: '先喊防守 · 再动',
+      brief: '挡拆不是跑套路，是<b>读防守</b>：绕掩护就投，换防就打大个，收缩就分球。每回合先喊出防守方式再动。',
+      blocks: [
+        { t: '热身 + 运球', d: '10 分钟：动态拉伸 + 双手交替运球 3 分钟' },
+        { t: '掩护后急停', d: '15 分钟：绕掩护 10 次，急停中投' },
+        { t: '换防单打', d: '15 分钟：对大个 10 次，先试探步再决定' },
+        { t: '分球', d: '15 分钟：突破吸引后击地/外传各 10 次' },
+        { t: '罚球 + 冷身', d: '12 分钟：罚球 30 个 + 冷身' }
+      ]
+    },
+    {
+      t: '防守脚步', big: '60', unit: 'MIN', small: '膝不内扣 · 重心不起伏',
+      brief: '想上场先能防。<b>滑步时膝盖别内扣</b>，这是你术后最需要保护的动作模式。今天所有脚步都对着镜子或录像做。',
+      blocks: [
+        { t: '热身', d: '8 分钟：动态拉伸 + 侧向移动 2 分钟' },
+        { t: '滑步', d: '15 分钟：左右各 4×15 米，重心不上下起伏' },
+        { t: '后退跑 + 转身', d: '12 分钟：后退 10 米接转身冲刺 10 米 ×6' },
+        { t: '1 对 1 防守', d: '15 分钟：对手 10 回合，只防不抢' },
+        { t: '冷身 + 泡沫轴', d: '10 分钟：大腿前侧、外侧各 3 分钟' }
+      ]
+    },
+    {
+      t: '转换进攻', big: '65', unit: 'MIN', small: '第一传 · 三秒决定',
+      brief: '快攻只练两件事：<b>第一传和终结</b>。抢到球先抬头找前场，三秒内做决定。今天全场冲刺 10 趟，每趟都要有人追。',
+      blocks: [
+        { t: '热身', d: '8 分钟：动态拉伸 + 加速跑 4×15 米' },
+        { t: '全场冲刺', d: '12 分钟：底线到底线 10 趟，间隔 30 秒' },
+        { t: '2 打 1 / 3 打 2', d: '20 分钟：各 8 回合，先传球再上篮' },
+        { t: '追身终结', d: '15 分钟：有人追防下上篮 10 次×2' },
+        { t: '罚球 + 冷身', d: '10 分钟：罚球 30 个 + 拉伸' }
+      ]
+    },
+    {
+      t: '弱手综合日', big: '75', unit: 'MIN', small: '一整天不碰右手',
+      brief: '一整天不碰右手。<b>左手运、左手传、左手终结</b>，掉了就捡起来重做。这天会很难看，但两个月后它就是你上场的原因。',
+      blocks: [
+        { t: '热身 + 左手运球', d: '12 分钟：全程左手，抬头看前方' },
+        { t: '左手传球', d: '15 分钟：对墙双手胸前 20 次 / 单手左手 20 次' },
+        { t: '左手终结', d: '20 分钟：篮下 30 个，一步上篮 20 个' },
+        { t: '左手对抗', d: '18 分钟：有人干扰下完成 10 次×2' },
+        { t: '左手罚球 + 冷身', d: '10 分钟：左罚 20 个 + 拉伸' }
+      ]
+    },
+    {
+      t: '实战复盘 + 测试', big: '70', unit: 'MIN', small: '四样测试 · 写数字',
+      brief: '每 12 次做一次考试。今天只测四样：<b>左手全场运球时间、罚球 50 个命中、三分 25 个命中、折返跑</b>。数字写下来，下一轮对比。',
+      blocks: [
+        { t: '热身', d: '10 分钟：动态拉伸 + 低运球 3 分钟' },
+        { t: '测试 1', d: '左手全场运球 2 趟计时，掉了重来' },
+        { t: '测试 2', d: '罚球 50 个，记录命中数' },
+        { t: '测试 3', d: '三分 25 个记命中 + 折返跑 3 组' },
+        { t: '录像复盘', d: '12 分钟：看这 12 次的一点进步和一点没改的毛病' }
+      ]
+    }
+  ];
+
+  /* 力量线：A 推 / B 拉 / C 腿 / D 核心+康复，4 次一循环 */
+  var LIFT_SESSIONS = [
+    {
+      t: 'A · 上肢推', big: '30', unit: 'KG', small: '卧推 4×6 · 45 分钟',
+      brief: '推的日子只看卧推。<b>最后一组还能多做两次</b>就是有余，下次加 2.5kg；最后两次要人扶，就退回原重量做满 5 组。',
+      blocks: [
+        { t: '热身', d: '8 分钟：空杆 2×10 · 弹力带肩外旋 2×15 · 俯卧撑 10 个' },
+        { t: '卧推', d: '18 分钟：30kg 4×6，肩胛后收，杠碰胸再推' },
+        { t: '哑铃肩推', d: '10 分钟：每侧 10kg 3×10，坐姿背贴靠垫' },
+        { t: '绳索下压 + 面拉', d: '10 分钟：下压 3×12 · 面拉 3×15' },
+        { t: '冷身', d: '4 分钟：胸椎、胸大肌各拉伸 2 分钟' }
+      ]
+    },
+    {
+      t: 'B · 上肢拉', big: '3', unit: '组', small: '引体到力竭 · 45 分钟',
+      brief: '今天先做一件事：<b>测出引体极限</b>。做不满 5 个就做离心——跳上去，用 5 秒慢慢放下来，比硬拉省时间。',
+      blocks: [
+        { t: '热身', d: '8 分钟：划船机 3 分钟 + 肩胛激活 2×12' },
+        { t: '引体向上', d: '15 分钟：3 组到力竭，记第一组个数；不足 5 个改离心 5 秒' },
+        { t: '单臂哑铃划船', d: '12 分钟：每侧 12.5kg 3×10，肘贴身体往后拉' },
+        { t: '弯举 + 农夫走', d: '12 分钟：弯举 2×12 · 农夫走 3×30 米（每手 16kg）' },
+        { t: '冷身', d: '5 分钟：背阔肌、二头拉伸' }
+      ]
+    },
+    {
+      t: 'C · 下肢护膝', big: '52.5', unit: 'KG', small: '箱式半蹲 5×5 · 50 分钟',
+      brief: '术后的腿不靠感觉，靠箱子。<b>坐到箱上停半秒</b>再起，膝盖对着脚尖，别内扣。52.5kg 做干净再谈加重。',
+      blocks: [
+        { t: '热身', d: '8 分钟：自行车 5 分钟 + 徒手深蹲 2×15' },
+        { t: '箱式半蹲', d: '20 分钟：52.5kg 5×5，触箱停半秒，膝不内扣' },
+        { t: '罗马尼亚硬拉', d: '12 分钟：40kg 3×8，髋往后坐，背别圆' },
+        { t: '单腿臀桥 + 提踵', d: '12 分钟：臀桥每侧 3×12 · 提踵 3×20' },
+        { t: '冷身', d: '5 分钟：股四头、臀肌拉伸' }
+      ]
+    },
+    {
+      t: 'D · 核心 + 膝康复', big: '45', unit: 'MIN', small: '核心 + 康复 · 45 分钟',
+      brief: '核心不是卷腹，是<b>抗旋转</b>。康复动作做慢，每个数到 3 秒，做完大腿前侧发热才对。',
+      blocks: [
+        { t: '热身', d: '5 分钟：快走或自行车' },
+        { t: '平板 + 侧支撑', d: '12 分钟：平板 3×45 秒 · 侧支撑每侧 3×30 秒' },
+        { t: '死虫 + 鸟狗', d: '10 分钟：各 3×10 每侧，腰不离地' },
+        { t: '直腿抬高 + 靠墙静蹲', d: '12 分钟：抬高 3×15 · 静蹲 3×45 秒' },
+        { t: '泡沫轴 + 单腿平衡', d: '6 分钟：大腿前侧 3 分钟 · 单腿站 3×30 秒' }
       ]
     }
   ];
@@ -105,8 +208,8 @@
       rest: { kcal: 3000, p: 140, c: 435, f: 72 }
     },
     days: {},
-    study: { days: {} },
-    train: { days: {} },
+    study: blankStudy(),
+    train: { ball: blankTrack(), lift: blankTrack(), history: [], coach: '' },
     customFoods: [],
     sync: {
       repo: 'kunjinitaimei/personal-vault',
@@ -133,10 +236,51 @@
     out.targets = Object.assign(clone(DEFAULT_STATE.targets), (s && s.targets) || {});
     out.sync = Object.assign(clone(DEFAULT_STATE.sync), (s && s.sync) || {});
     out.days = (s && s.days) || {};
-    out.study = { days: (s && s.study && s.study.days) || {} };
-    out.train = { days: (s && s.train && s.train.days) || {} };
+    var st = (s && s.study) || {};
+    out.study = blankStudy();
+    if (typeof st.idx === 'number') {
+      out.study.idx = st.idx;
+      out.study.en = normFlags(st.en);
+      out.study.cscs = normFlags(st.cscs);
+      out.study.right = num(st.right, 0);
+      out.study.total = num(st.total, 0);
+      out.study.out = typeof st.out === 'string' ? st.out : '';
+      out.study.feedback = typeof st.feedback === 'string' ? st.feedback : '';
+      out.study.history = Array.isArray(st.history) ? st.history : [];
+    }
+    var tr = (s && s.train) || {};
+    out.train = { ball: blankTrack(), lift: blankTrack(), history: [], coach: '' };
+    if (tr.ball || tr.lift) {
+      out.train.ball = normTrack(tr.ball);
+      out.train.lift = normTrack(tr.lift);
+      out.train.history = Array.isArray(tr.history) ? tr.history : [];
+      out.train.coach = typeof tr.coach === 'string' ? tr.coach : '';
+    }
     out.customFoods = (s && s.customFoods) || [];
     return out;
+  }
+  function blankTrack() {
+    return { idx: 0, done: [false, false, false, false, false], rpe: 0, note: '' };
+  }
+  function blankStudy() {
+    return { idx: 0, en: [false, false, false], cscs: [false, false, false], right: 0, total: 0, out: '', feedback: '', history: [] };
+  }
+  function normFlags(a) {
+    var out = Array.isArray(a) ? a.slice(0, 3) : [];
+    while (out.length < 3) out.push(false);
+    return out.map(function (x) { return !!x; });
+  }
+  function normTrack(t) {
+    var d = blankTrack();
+    if (!t) return d;
+    if (typeof t.idx === 'number') d.idx = Math.max(0, t.idx);
+    if (Array.isArray(t.done)) {
+      d.done = t.done.slice(0, 5);
+      while (d.done.length < 5) d.done.push(false);
+    }
+    if (typeof t.rpe === 'number') d.rpe = t.rpe;
+    if (typeof t.note === 'string') d.note = t.note;
+    return d;
   }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function save() {
@@ -207,44 +351,45 @@
     return (state.profile.avoid || []).some(function (a) { return a && name.indexOf(a) > -1; });
   }
 
-  /* ---------------- 训练数据 ---------------- */
-  function planOf(k) { return TRAIN_PLAN[parseKey(k).getDay()]; }
-  function trainDay(k) {
-    k = k || todayKey();
-    if (!state.train.days[k]) state.train.days[k] = { done: [false, false, false, false], rpe: 0, sore: '', coach: '', actual: '' };
-    var d = state.train.days[k];
-    if (!Array.isArray(d.done)) d.done = [false, false, false, false];
-    while (d.done.length < 4) d.done.push(false);
-    if (typeof d.rpe !== 'number') d.rpe = 0;
-    if (typeof d.sore !== 'string') d.sore = '';
-    if (typeof d.coach !== 'string') d.coach = '';
-    if (typeof d.actual !== 'string') d.actual = '';
-    return d;
+  /* ---------------- 训练数据：双轨游标 ---------------- */
+  function trackOf(name) { return state.train[name]; }
+  function sessionOf(name, idx) {
+    var arr = name === 'ball' ? BALL_SESSIONS : LIFT_SESSIONS;
+    return arr[idx % arr.length];
   }
-  function doneRaw(k) {
-    var t = state.train.days[k];
-    return t && Array.isArray(t.done) ? t.done.filter(Boolean).length : 0;
+  function recentCounts(days) {
+    var from = shiftKey(todayKey(), -(days - 1));
+    var out = { ball: 0, lift: 0, total: 0 };
+    state.train.history.forEach(function (h) {
+      if (h && h.date && h.date >= from) {
+        if (h.track === 'ball') out.ball++;
+        if (h.track === 'lift') out.lift++;
+        out.total++;
+      }
+    });
+    return out;
   }
-  function trainDone() { return doneRaw(todayKey()); }
-  function weekDone() {
-    var st = weekStart(todayKey()), n = 0;
-    for (var i = 0; i < 7; i++) if (doneRaw(shiftKey(st, i)) >= 2) n++;
-    return n;
-  }
-  function streak() {
-    var n = 0, k = todayKey(), guard = 0;
-    if (doneRaw(k) === 0) k = shiftKey(k, -1);
-    while (doneRaw(k) > 0 && guard < 400) { n++; guard++; k = shiftKey(k, -1); }
-    return n;
-  }
-  function setTrain(field, v) {
-    var d = trainDay(todayKey());
-    d[field] = v;
+  function setTrackNote(name, v) {
+    trackOf(name).note = v;
     save(); queueSync();
   }
+  function completeTrack(name) {
+    var t = trackOf(name), ses = sessionOf(name, t.idx);
+    state.train.history.unshift({
+      track: name, n: t.idx + 1, date: todayKey(), title: ses.t,
+      done: t.done.filter(Boolean).length, rpe: t.rpe || 0, note: (t.note || '').trim()
+    });
+    state.train.history = state.train.history.slice(0, 80);
+    t.idx++;
+    t.done = [false, false, false, false, false];
+    t.rpe = 0;
+    t.note = '';
+    save(); render(); queueSync();
+    var next = sessionOf(name, t.idx);
+    toast((name === 'ball' ? '有球' : '力量') + '第 ' + t.idx + ' 次完成 · 下一次「' + next.t + '」');
+  }
 
-  /* ---------------- 学习：日期驱动的每日计划 ---------------- */
-  var PLAN_START = '2026-11-11';
+  /* ---------------- 学习：按「第 N 天」推进 ---------------- */
 
   /* 英语：刘晓艳四级课 + 真题，12 周循环，逐周推进 */
   var EN_WEEKS = [
@@ -341,40 +486,35 @@
       { t: '一周复盘', d: '这周最难的一个概念，用一句话讲给外行听懂' }]; }
   ];
 
-  function newStudyDay() {
-    return { en: [false, false, false], cscs: [false, false, false], right: 0, total: 0, out: '', feedback: '' };
+  function studyWeekNo() { return Math.floor(state.study.idx / 7) % EN_WEEKS.length; }
+  function studyRole() { return state.study.idx % 7; }
+  function studyDone() {
+    var st = state.study;
+    return st.en.filter(Boolean).length + st.cscs.filter(Boolean).length;
   }
-  function studyDay(k) {
-    k = k || todayKey();
-    if (!state.study.days[k]) state.study.days[k] = newStudyDay();
-    var d = state.study.days[k];
-    ['en', 'cscs'].forEach(function (f) {
-      if (!Array.isArray(d[f])) d[f] = [false, false, false];
-      while (d[f].length < 3) d[f].push(false);
-    });
-    if (d.out && typeof d.out === 'object') d.out = d.out.text || '';
-    if (typeof d.out !== 'string') d.out = '';
-    if (typeof d.feedback !== 'string') d.feedback = '';
-    if (typeof d.right !== 'number') d.right = 0;
-    if (typeof d.total !== 'number') d.total = 0;
-    return d;
-  }
-  function studyDone(k) {
-    var d = studyDay(k);
-    return d.en.filter(Boolean).length + d.cscs.filter(Boolean).length;
-  }
-  function dayIdx(k) {
-    return Math.max(0, Math.round((parseKey(k || todayKey()) - parseKey(PLAN_START)) / 86400000));
-  }
-  function planWeek(k) { return Math.floor(dayIdx(k) / 7); }
-  function enWeek(k) { return EN_WEEKS[planWeek(k) % EN_WEEKS.length]; }
-  function cscsWeek(k) { return CSCS_WEEKS[planWeek(k) % CSCS_WEEKS.length]; }
   function setStudy(field, v) {
-    studyDay(todayKey())[field] = v;
+    state.study[field] = v;
     save();
     var badge = document.getElementById('st-badge');
     if (badge) badge.textContent = studyDone() + '/6 项';
     queueSync();
+  }
+  function completeStudyDay() {
+    var st = state.study;
+    if (studyDone() < 6) { toast('6 项全亮才算过一天'); return; }
+    var wk = studyWeekNo();
+    st.history.unshift({
+      n: st.idx + 1, date: todayKey(), week: wk + 1,
+      right: st.right || 0, total: st.total || 0,
+      en: EN_WEEKS[wk].t, cscs: CSCS_WEEKS[wk].t
+    });
+    st.history = st.history.slice(0, 84);
+    st.idx++;
+    st.en = [false, false, false];
+    st.cscs = [false, false, false];
+    st.right = 0; st.total = 0; st.out = ''; st.feedback = '';
+    save(); render(); queueSync();
+    toast('第 ' + st.idx + ' 天，接着来');
   }
 
   /* ---------------- 视图状态 ---------------- */
@@ -413,64 +553,50 @@
     return '<div class="topbar"><div><div class="eyebrow">' + eyebrow + '</div><h1>' + title + '</h1></div>' + (right || '') + '</div>';
   }
 
-  /* ================= 训练 ================= */
-  function viewTrain() {
-    var k = todayKey(), p = planOf(k), d = trainDay(k);
-    var done = d.done.filter(Boolean).length, goal = state.profile.trainWeekly || 5;
+  /* ================= 训练：有球 + 力量，双轨游标 ================= */
+  var TICK = '<svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5"/></svg>';
 
-    var s = head('第 ' + weekNo() + ' 周 · ' + p.tag, '训练',
-      '<span class="status">' + (done === 4 ? '已完成' : done > 0 ? '进行中' : '未开始') + '</span>');
-
-    /* 读数 */
-    s += '<section class="treadout">' +
-      '<div class="tr-top"><span>' + (p.main ? p.main.name : '恢复') + '</span><span>' + done + ' / 4 项</span></div>' +
-      '<div class="tr-num' + (String(p.main.big).length > 3 ? ' nosmall' : '') + '">' + esc(String(p.main.big)) +
-        (p.main.unit ? '<small>' + p.main.unit + '</small>' : '') + '</div>' +
-      '<div class="tr-bar"><i></i><span>' + esc(p.main.small) + '</span></div>' +
-      '<label class="frow-in"><span>实际</span>' +
-        '<input data-train="actual" type="text" placeholder="30kg × 6,6,6,5" value="' + esc(d.actual) + '"></label>' +
+  function readout(label, ses, done) {
+    return '<section class="treadout">' +
+      '<div class="tr-top"><span>' + label + '</span><span>' + done + ' / ' + ses.blocks.length + ' 项</span></div>' +
+      '<div class="tr-num' + (String(ses.big).length > 3 ? ' nosmall' : '') + '">' + esc(String(ses.big)) +
+        (ses.unit ? '<small>' + ses.unit + '</small>' : '') + '</div>' +
+      '<div class="tr-bar"><i></i><span>' + esc(ses.small) + '</span></div>' +
     '</section>';
+  }
 
-    /* 教练简报 */
-    s += '<div class="brief"><div class="brief-k">教练简报</div>' + p.brief + '</div>';
+  function viewTrain() {
+    var tb = trackOf('ball'), tl = trackOf('lift');
+    var sb = sessionOf('ball', tb.idx), sl = sessionOf('lift', tl.idx);
+    var db = tb.done.filter(Boolean).length, dl = tl.done.filter(Boolean).length;
+    var r7 = recentCounts(7);
+    var s = head('不绑日期 · 有空就推进', '训练',
+      '<span class="status">近 7 天 ' + r7.total + ' 次</span>');
 
-    /* 三个读数 */
+    s += readout('有球 · 第 ' + (tb.idx + 1) + ' 次', sb, db);
+    s += readout('力量 · 第 ' + (tl.idx + 1) + ' 次', sl, dl);
+
     s += '<div class="mods">' +
-      '<div class="mod' + (weekDone() >= goal ? ' on' : '') + '"><div class="mod-k">本周</div>' +
-        '<div class="mod-v">' + weekDone() + '<i>/ ' + goal + '</i></div><div class="mod-f">训练天</div></div>' +
-      '<div class="mod"><div class="mod-k">主项</div>' +
-        '<div class="mod-v">' + esc(String(p.main.big)) + (p.main.unit ? '<i>' + p.main.unit + '</i>' : '') + '</div>' +
-        '<div class="mod-f">' + esc(p.main.name) + '</div></div>' +
-      '<div class="mod"><div class="mod-k">连续</div>' +
-        '<div class="mod-v">' + streak() + '<i>天</i></div><div class="mod-f">不断档</div></div>' +
+      '<div class="mod' + (r7.ball >= 4 ? ' on' : '') + '"><div class="mod-k">有球</div>' +
+        '<div class="mod-v">' + r7.ball + '<i>次</i></div><div class="mod-f">近 7 天 · 目标 4–5</div></div>' +
+      '<div class="mod' + (r7.lift >= 3 ? ' on' : '') + '"><div class="mod-k">力量</div>' +
+        '<div class="mod-v">' + r7.lift + '<i>次</i></div><div class="mod-f">近 7 天 · 目标 3</div></div>' +
+      '<div class="mod"><div class="mod-k">累计</div>' +
+        '<div class="mod-v">' + state.train.history.length + '<i>次</i></div><div class="mod-f">两条线合计</div></div>' +
     '</div>';
 
-    /* 今日清单 */
-    s += '<section class="card"><div class="card-head"><h2>今天练什么</h2><span class="hint">做完点右边</span></div>' +
-      p.items.map(function (it, i) {
-        var on = !!d.done[i];
-        return '<div class="todo' + (on ? ' done' : '') + '">' +
-          '<div class="todo-no">' + pad(i + 1) + '</div>' +
-          '<div class="todo-t"><h3>' + esc(it.t) + '</h3><p>' + esc(it.d) + '</p></div>' +
-          '<button class="key" data-act="tcheck" data-i="' + i + '">' +
-            (on ? '<svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : '') +
-          '</button>' +
-        '</div>';
-      }).join('') +
-      '<p class="note">做完一项点一下右边的键。四项全亮，这一天才算过。</p>' +
-    '</section>';
+    s += trackCard('ball', tb, sb);
+    s += trackCard('lift', tl, sl);
 
-    /* 强度 + 身体反馈 */
-    s += '<section class="card"><div class="card-head"><h2>今天有多难</h2><span class="hint">1 轻松 · 10 拼到爆</span></div>' +
-      '<div class="rpe">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) {
-        return '<span class="' + (d.rpe === n ? 'on' : '') + '" data-act="trpe" data-n="' + n + '">' + n + '</span>';
-      }).join('') + '</div>' +
-      '<textarea class="ta" data-train="sore" rows="2" placeholder="哪里酸、哪里不对，一句话（膝：稳 / 酸 / 痛）">' + esc(d.sore) + '</textarea>' +
-    '</section>';
-
-    /* 本周 */
-    s += '<section class="card"><div class="card-head"><h2>这一周</h2><span class="hint">' + weekDone() + ' / ' + goal + ' 天</span></div>' +
-      '<div class="week">' + weekStrip() + '</div>' +
+    /* 最近完成 */
+    var hist = state.train.history.slice(0, 6);
+    s += '<section class="card"><div class="card-head"><h2>最近 6 次</h2><span class="hint">从新到旧</span></div>' +
+      (hist.length ? '<div class="steps">' + hist.map(function (h) {
+        return '<div class="steprow"><span class="dot on"></span><span class="stepn">' +
+          (h.track === 'ball' ? '有球 ' : '力量 ') + h.n + ' · ' + esc(h.title) + '</span>' +
+          '<span class="stepv">' + (h.date || '').slice(5) + ' · ' + h.done + '/5</span></div>';
+      }).join('') + '</div>'
+        : '<p class="note">还没有完成过一次。5 项做完，点「完成第 N 次」，这里会留下记录。</p>') +
     '</section>';
 
     /* AI 教练 */
@@ -478,49 +604,63 @@
       '<div class="btns"><button class="solid" data-act="tsend">复制今日简报</button>' +
         '<button class="ghost" data-act="deepseek">打开 DeepSeek</button></div>' +
       '<div class="aibox"><div class="aibox-h"><span>教练回复</span><button class="linkbtn" data-act="tpaste">粘贴回答</button></div>' +
-        '<textarea class="ta" data-train="coach" rows="5" placeholder="复制简报 → 到 DeepSeek 粘贴发送 → 复制回答 → 回来点「粘贴回答」">' + esc(d.coach) + '</textarea>' +
+        '<textarea class="ta" id="tr-coach" rows="5" placeholder="复制简报 → 到 DeepSeek 粘贴发送 → 复制回答 → 回来点「粘贴回答」">' + esc(state.train.coach) + '</textarea>' +
       '</div>' +
-      '<p class="note">简报里带着你的伤、目标、今天完成度和 RPE，AI 才知道该加还是该减。</p>' +
+      '<p class="note">简报里带着两条线的进度、RPE、备注和最近 6 次记录，AI 才知道该加还是该减。</p>' +
     '</section>';
 
     return s;
   }
 
-  function weekStrip() {
-    var st = weekStart(todayKey()), out = '', nm = ['一', '二', '三', '四', '五', '六', '日'];
-    for (var i = 0; i < 7; i++) {
-      var k = shiftKey(st, i), p = planOf(k);
-      out += '<div class="wd' + (k === todayKey() ? ' now' : '') + (p.main.unit === 'MIN' || p.tag === '恢复' ? ' rest' : '') +
-        (doneRaw(k) ? ' ok' : '') + '"><b>' + nm[i] + '</b><span>' + p.short + '</span></div>';
-    }
-    return out;
+  function trackCard(name, t, ses) {
+    var isBall = name === 'ball';
+    var n = t.done.filter(Boolean).length;
+    return '<section class="card">' +
+      '<div class="card-head"><h2><i class="idx">' + (isBall ? 'A' : 'B') + '</i>' +
+        (isBall ? '有球 · 个人发展' : '力量 · 核心与护膝') + '</h2><span class="hint">' + n + ' / 5 项</span></div>' +
+      '<div class="brief"><div class="brief-k">第 ' + (t.idx + 1) + ' 次 · ' + esc(ses.t) + '</div>' + ses.brief + '</div>' +
+      ses.blocks.map(function (b, i) {
+        var on = !!t.done[i];
+        return '<div class="todo' + (on ? ' done' : '') + '">' +
+          '<div class="todo-no">' + pad(i + 1) + '</div>' +
+          '<div class="todo-t"><h3>' + esc(b.t) + '</h3><p>' + esc(b.d) + '</p></div>' +
+          '<button class="key" data-act="' + (isBall ? 'bcheck' : 'lcheck') + '" data-i="' + i + '">' + (on ? TICK : '') + '</button>' +
+        '</div>';
+      }).join('') +
+      '<div class="tr-top" style="margin-top:16px"><span>RPE · 这次有多难</span><span>1 轻松 · 10 拼到爆</span></div>' +
+      '<div class="rpe">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (x) {
+        return '<span class="' + (t.rpe === x ? 'on' : '') + '" data-act="' + (isBall ? 'brpe' : 'lrpe') + '" data-n="' + x + '">' + x + '</span>';
+      }).join('') + '</div>' +
+      '<textarea class="ta" data-trk="' + name + '" rows="2" placeholder="' +
+        (isBall ? '哪里不顺：左手掉球、抬头、脚步…' : '实做重量 / 膝的反应（稳 · 酸 · 痛）') + '">' + esc(t.note) + '</textarea>' +
+      '<button class="solid big" data-act="' + (isBall ? 'bnext' : 'lnext') + '">完成第 ' + (t.idx + 1) + ' 次 → 第 ' + (t.idx + 2) + ' 次</button>' +
+    '</section>';
   }
 
   function buildTrainPrompt() {
-    var k = todayKey(), p = planOf(k), d = trainDay(k);
-    var doneList = [];
-    d.done.forEach(function (v, i) { if (v) doneList.push((i + 1) + '. ' + p.items[i].t); });
-    var lines = p.items.map(function (it, i) { return (i + 1) + ') ' + it.t + '（' + it.d + '）'; }).join('\n');
-    var hist = [];
-    for (var i = 1; i <= 6; i++) {
-      var kk = shiftKey(k, -i), t = state.train.days[kk];
-      if (t && (t.rpe || (t.sore || '').trim() || (t.actual || '').trim())) {
-        hist.push(dateLabel(kk) + '：完成 ' + (t.done || []).filter(Boolean).length + '/4，RPE ' + (t.rpe || '未记') +
-          ((t.actual || '').trim() ? '，实做 ' + t.actual.trim() : '') +
-          ((t.sore || '').trim() ? '，' + t.sore.trim() : ''));
-      }
+    var tb = trackOf('ball'), tl = trackOf('lift');
+    var sb = sessionOf('ball', tb.idx), sl = sessionOf('lift', tl.idx);
+    function lines(ses) { return ses.blocks.map(function (b, i) { return (i + 1) + ') ' + b.t + '（' + b.d + '）'; }).join('\n'); }
+    function doneList(t, ses) {
+      var out = [];
+      t.done.forEach(function (v, i) { if (v) out.push((i + 1) + '. ' + ses.blocks[i].t); });
+      return out.length ? out.join('；') : '暂无';
     }
+    var hist = state.train.history.slice(0, 6).map(function (h) {
+      return (h.date || '').slice(5) + ' ' + (h.track === 'ball' ? '有球' : '力量') + '第' + h.n + '次「' + h.title + '」' +
+        '完成 ' + h.done + '/5，RPE ' + (h.rpe || '未记') + (h.note ? '，' + h.note : '');
+    });
     return '你是我的力量与篮球体能教练，要求严格，不要客套。\n' +
       '我：17 岁，CUBA 控卫，190cm / 72kg，左膝半月板术后 8 个月，正在增肌（每周 +0.3kg），左手持球是短板，不吃蛋白粉。\n' +
-      '今天（' + dateLabel(k) + '）的计划：\n' + lines + '\n' +
-      '已完成：' + (doneList.length ? doneList.join('；') : '暂无') + '\n' +
-      '实际完成：' + ((d.actual || '').trim() || '未记录') + '\n' +
-      '自评强度 RPE：' + (d.rpe ? d.rpe + '/10' : '未记录') + '\n' +
-      '身体反馈：' + ((d.sore || '').trim() || '无') + '\n' +
+      '我不按日期练，按次数推进。今天的两条线：\n' +
+      '【有球 第' + (tb.idx + 1) + '次】' + sb.t + '\n' + lines(sb) + '\n已完成：' + doneList(tb, sb) +
+        '\nRPE：' + (tb.rpe || '未记') + '，备注：' + ((tb.note || '').trim() || '无') + '\n' +
+      '【力量 第' + (tl.idx + 1) + '次】' + sl.t + '\n' + lines(sl) + '\n已完成：' + doneList(tl, sl) +
+        '\nRPE：' + (tl.rpe || '未记') + '，备注：' + ((tl.note || '').trim() || '无') + '\n' +
       (hist.length ? '最近记录：\n' + hist.join('\n') + '\n' : '') +
       '\n直接回答四件事：\n' +
-      '1) 今天的完成质量有没有问题\n' +
-      '2) 明天练什么，重量加不加，加到多少\n' +
+      '1) 这两练的量和强度够不够，哪里在偷懒\n' +
+      '2) 下一次有球练什么，力量加不加、加到多少\n' +
       '3) 只指出一个我最该改的技术细节\n' +
       '4) 左膝如果有反应，我该停、减量还是照常练\n' +
       '结论优先，300 字以内。';
@@ -714,34 +854,40 @@
   }
 
   function viewStudy() {
-    var k = todayKey(), d = studyDay(k), n = studyDone(k);
-    var wk = planWeek(k) + 1, en = enWeek(k), cs = cscsWeek(k);
-    var role = dayIdx(k) % 7, enTasks = EN_ROLES[role](en), csTasks = CSCS_ROLES[role](cs);
-    var rate = d.total > 0 ? Math.round(d.right / d.total * 100) + '%' : '未记';
-    var s = head('第 ' + (dayIdx(k) + 1) + ' 天 · 第 ' + wk + ' 周', '学习',
+    var st = state.study, n = studyDone();
+    var dayNo = st.idx + 1, wk = studyWeekNo() + 1;
+    var en = EN_WEEKS[wk - 1], cs = CSCS_WEEKS[wk - 1];
+    var role = studyRole(), enTasks = EN_ROLES[role](en), csTasks = CSCS_ROLES[role](cs);
+    var rate = st.total > 0 ? Math.round(st.right / st.total * 100) + '%' : '未记';
+    var s = head('第 ' + dayNo + ' 天 / 84 · 第 ' + wk + ' 周', '学习',
       '<div class="pill" id="st-badge">' + n + '/6 项</div>');
+
+    s += '<section class="card"><div class="card-head"><h2>推到哪了</h2><span class="hint">已完成 ' + st.idx + ' 天</span></div>' +
+      '<div class="track"><span style="width:' + Math.round(st.idx / 84 * 100) + '%;background:var(--volt)"></span></div>' +
+      '<p class="note">不绑日期：今天没空，第 ' + dayNo + ' 天就停在这里，明天接着做同一份。6 项全亮才算过一天。</p>' +
+      (n === 6
+        ? '<button class="solid big" data-act="stnext">完成第 ' + dayNo + ' 天 → 第 ' + (dayNo + 1) + ' 天</button>'
+        : '<p class="note">还差 ' + (6 - n) + ' 项。别跳天，跳了就永远补不上。</p>') +
+    '</section>';
 
     s += '<section class="card">' +
       '<div class="card-head"><h2><i class="idx">1</i>英语 · 四级</h2><span class="hint">' + esc(en.t) + '</span></div>' +
-      enTasks.map(function (x, i) { return planTodo('encheck', i, x.t, x.d, d.en[i]); }).join('') +
+      enTasks.map(function (x, i) { return planTodo('encheck', i, x.t, x.d, st.en[i]); }).join('') +
       '<p class="note">刘晓艳给你方法和词汇，真题给你分数。只听课不做题，等于没学。</p>' +
     '</section>';
 
     s += '<section class="card">' +
       '<div class="card-head"><h2><i class="idx">2</i>CSCS</h2><span class="hint">' + esc(cs.t) + '</span></div>' +
-      csTasks.map(function (x, i) { return planTodo('cscscheck', i, x.t, x.d, d.cscs[i]); }).join('') +
+      csTasks.map(function (x, i) { return planTodo('cscscheck', i, x.t, x.d, st.cscs[i]); }).join('') +
       '<p class="note">读一遍不算会。能用自己的话讲出来、能给队友用上，才算。</p>' +
     '</section>';
 
     s += '<section class="card"><div class="card-head"><h2><i class="idx">3</i>今天做题</h2><span class="hint">正确率 ' + rate + '</span></div>' +
       '<div class="rate">' +
-        '<label><input data-study="right" type="number" inputmode="numeric" value="' + (d.right || '') + '"><i>做对</i></label>' +
+        '<label><input data-study="right" type="number" inputmode="numeric" value="' + (st.right || '') + '"><i>做对</i></label>' +
         '<span>/</span>' +
-        '<label><input data-study="total" type="number" inputmode="numeric" value="' + (d.total || '') + '"><i>总题数</i></label>' +
+        '<label><input data-study="total" type="number" inputmode="numeric" value="' + (st.total || '') + '"><i>总题数</i></label>' +
       '</div></section>';
-
-    s += '<section class="card"><div class="card-head"><h2>近 7 天</h2><span class="hint">每天 6 项</span></div>' +
-      '<div class="bars">' + studyBars() + '</div></section>';
 
     s += '<section class="card"><div class="card-head"><h2>两条线考什么</h2><span class="hint">先看地图再走路</span></div>' +
       '<div class="steps">' +
@@ -751,19 +897,28 @@
         stepRow('CSCS 科学基础', '解剖 / 生物力学 / 内分泌 / 营养', wk <= 4) +
         stepRow('CSCS 实践应用', '测试 / 技术 / 计划 / 周期', wk >= 5) +
       '</div>' +
-      '<p class="note">四级 425 过线；CSCS 两科都要 70% 左右。哪个都躲不掉，就按周次一周一周往前推。</p>' +
+      '<p class="note">四级 425 过线；CSCS 两科都要 70% 左右。哪个都躲不掉，就一天一天往前推。</p>' +
     '</section>';
 
     s += '<section class="card"><div class="card-head"><h2>作文 / 翻译批改</h2><span class="hint">写完贴进来</span></div>' +
-      '<textarea class="ta" data-study="out" rows="4" placeholder="把今天写的作文或翻译贴进来，先自己看一遍再交给 AI">' + esc(d.out) + '</textarea>' +
+      '<textarea class="ta" data-study="out" rows="4" placeholder="把今天写的作文或翻译贴进来，先自己看一遍再交给 AI">' + esc(st.out) + '</textarea>' +
       '<div class="btns">' +
         '<button class="solid" data-act="aisend">交给 AI 批改</button>' +
         '<button class="ghost" data-act="deepseek">打开 DeepSeek</button>' +
       '</div>' +
       '<div class="aibox">' +
         '<div class="aibox-h"><span>批改结果</span><button class="linkbtn" data-act="aipaste">粘贴回答</button></div>' +
-        '<textarea class="ta" data-study="feedback" rows="4" placeholder="复制回答后回来点「粘贴回答」">' + esc(d.feedback) + '</textarea>' +
+        '<textarea class="ta" data-study="feedback" rows="4" placeholder="复制回答后回来点「粘贴回答」">' + esc(st.feedback) + '</textarea>' +
       '</div>' +
+    '</section>';
+
+    s += '<section class="card"><div class="card-head"><h2>最近完成</h2><span class="hint">从新到旧</span></div>' +
+      (st.history.length
+        ? '<div class="steps">' + st.history.slice(0, 5).map(function (h) {
+            return '<div class="steprow"><span class="dot on"></span><span class="stepn">第 ' + h.n + ' 天 · 第 ' + (h.week || '') + ' 周</span>' +
+              '<span class="stepv">' + (h.date || '').slice(5) + ' · 对 ' + (h.right || 0) + '/' + (h.total || 0) + '</span></div>';
+          }).join('') + '</div>'
+        : '<p class="note">还没有完成过一整天。先把今天的 6 项点亮。</p>') +
     '</section>';
 
     return s;
@@ -772,16 +927,6 @@
   function stepRow(name, val, on) {
     return '<div class="steprow"><span class="dot' + (on ? ' on' : '') + '"></span>' +
       '<span class="stepn">' + name + '</span><span class="stepv">' + val + '</span></div>';
-  }
-  function studyBars() {
-    var out = '';
-    for (var i = 6; i >= 0; i--) {
-      var k = shiftKey(todayKey(), -i), n = studyDone(k);
-      var dt = parseKey(k);
-      out += '<div class="barcol"><div class="barcol-track"><span style="height:' + Math.round(n / 6 * 100) + '%"></span></div>' +
-        '<div class="barcol-lb">' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</div></div>';
-    }
-    return out;
   }
 
   function buildPrompt(d) {
@@ -813,9 +958,8 @@
   }
 
   function aiSend() {
-    var d = studyDay(todayKey());
-    if (!d.out.trim()) { toast('先把今天写的作文或翻译贴进来'); return; }
-    shareOrCopy(buildPrompt(d));
+    if (!state.study.out.trim()) { toast('先把今天写的作文或翻译贴进来'); return; }
+    shareOrCopy(buildPrompt(state.study));
   }
 
   function pasteTo(fn) {
@@ -989,18 +1133,24 @@
     var act = el.dataset.act;
 
     /* 训练 */
-    if (act === 'tcheck') {
-      var td = trainDay(todayKey()), i = +el.dataset.i;
+    if (act === 'bcheck' || act === 'lcheck') {
+      var name = act === 'bcheck' ? 'ball' : 'lift';
+      var td = trackOf(name), i = +el.dataset.i;
       td.done[i] = !td.done[i];
       save(); renderKeep(); queueSync(); return;
     }
-    if (act === 'trpe') {
-      var tk = trainDay(todayKey());
+    if (act === 'brpe' || act === 'lrpe') {
+      var trk = act === 'brpe' ? 'ball' : 'lift';
+      var tk = trackOf(trk);
       tk.rpe = (tk.rpe === +el.dataset.n) ? 0 : +el.dataset.n;
       save(); renderKeep(); queueSync(); return;
     }
+    if (act === 'bnext') { completeTrack('ball'); return; }
+    if (act === 'lnext') { completeTrack('lift'); return; }
     if (act === 'tsend') { shareOrCopy(buildTrainPrompt()); return; }
-    if (act === 'tpaste') { pasteTo(function (t) { setTrain('coach', t); }); return; }
+    if (act === 'tpaste') {
+      pasteTo(function (t) { state.train.coach = t; save(); queueSync(); }); return;
+    }
 
     /* 饮食 */
     if (act === 'daytype') {
@@ -1080,12 +1230,12 @@
 
     /* 学习 */
     if (act === 'encheck' || act === 'cscscheck') {
-      var sd = studyDay(todayKey());
       var fld = act === 'encheck' ? 'en' : 'cscs';
       var ii = +el.dataset.i;
-      sd[fld][ii] = !sd[fld][ii];
+      state.study[fld][ii] = !state.study[fld][ii];
       save(); queueSync(); renderKeep(); return;
     }
+    if (act === 'stnext') { completeStudyDay(); return; }
     if (act === 'aisend') { aiSend(); return; }
     if (act === 'aipaste') { pasteTo(function (t) { setStudy('feedback', t); }); return; }
     if (act === 'deepseek') { window.open('https://chat.deepseek.com/', '_blank'); return; }
@@ -1124,8 +1274,8 @@
       }
       return;
     }
-    var trField = e.target.getAttribute && e.target.getAttribute('data-train');
-    if (trField) { setTrain(trField, e.target.value); return; }
+    var trkField = e.target.getAttribute && e.target.getAttribute('data-trk');
+    if (trkField) { setTrackNote(trkField, e.target.value); return; }
     var stPath = e.target.getAttribute && e.target.getAttribute('data-study');
     if (stPath) {
       setStudy(stPath, e.target.type === 'number' ? num(e.target.value, 0) : e.target.value);

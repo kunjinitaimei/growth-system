@@ -1,5 +1,5 @@
 /* 离线缓存：让加到主屏幕后没网也能打开 */
-var CACHE = 'growth-v4';
+var CACHE = 'growth-v5';
 var FILES = [
   './',
   './index.html',
