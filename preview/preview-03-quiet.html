@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练 · 静谧 · 成长系统 v2</title>
+<!-- ③ 静谧 · Things 3 × Apple ／ 宣言：删到只剩今天要做的事，留白本身就是重量 ／ 点睛色 #2F5D50 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBFBF9; --card:#FFFFFF; --ink:#1B1B19; --ink-2:#57574F;
+  --dim:#94948B; --hair:#EDEDE7; --accent:#2F5D50; --accent-soft:#EAF0EC;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;display:flex;justify-content:center;padding:38px 16px 64px;
+  background:#E8E8E3;font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;
+}
+.stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+.cap{font-size:11px;letter-spacing:.22em;color:#8D8D84;text-transform:uppercase}
+.cap b{color:var(--accent)}
+.phone{
+  width:400px;height:848px;border-radius:44px;padding:10px;
+  background:linear-gradient(180deg,#FFFFFF,#F2F2ED);
+  box-shadow:0 50px 90px -36px rgba(40,40,30,.45),0 0 0 1px rgba(0,0,0,.04),
+             inset 0 1px 0 #fff;
+}
+.screen{
+  height:100%;border-radius:35px;background:var(--bg);overflow-y:auto;overflow-x:hidden;
+  padding:0 26px;scrollbar-width:none;position:relative;
+}
+.screen::-webkit-scrollbar{display:none}
+/* 极轻的环境光晕质感 */
+.screen::before{content:"";position:absolute;top:-90px;left:50%;transform:translateX(-50%);
+  width:360px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,rgba(47,93,80,.07),transparent 68%);pointer-events:none}
+
+/* 状态栏 */
+.sb{display:flex;justify-content:space-between;align-items:center;padding:16px 2px 0;
+  font-size:11px;color:var(--dim);letter-spacing:.04em;font-weight:500}
+.sb svg{width:16px;height:11px;fill:currentColor}
+
+/* 头部 */
+.hd{padding:26px 0 0;position:relative;z-index:1}
+.date{font-size:11.5px;color:var(--dim);letter-spacing:.12em}
+.status{display:inline-flex;align-items:center;gap:7px;margin-top:12px;font-size:11px;color:var(--accent);letter-spacing:.06em}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:soft 3s ease-in-out infinite}
+@keyframes soft{0%,100%{opacity:.35;transform:scale(.9)}50%{opacity:1;transform:scale(1.1)}}
+h1{font-size:42px;font-weight:600;letter-spacing:-.03em;line-height:1.1;margin-top:18px}
+h1 span{display:block;font-size:13px;font-weight:400;color:var(--dim);letter-spacing:.1em;margin-top:12px}
+
+/* 教练卡 */
+.brief{
+  margin-top:36px;background:var(--card);border-radius:22px;padding:22px 22px 21px;
+  box-shadow:0 1px 2px rgba(30,30,20,.04),0 12px 32px -14px rgba(30,30,20,.14);
+  animation:rise .8s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.brief .who{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.brief .who b{color:var(--accent);font-weight:600}
+.brief p{font-size:15.5px;line-height:1.95;color:var(--ink-2);margin-top:14px;letter-spacing:.01em}
+.brief p strong{color:var(--ink);font-weight:600}
+
+/* 三个数 */
+.nums{display:flex;margin-top:38px;padding:0 2px}
+.n{flex:1;position:relative}
+.n+.n{padding-left:18px;border-left:1px solid var(--hair)}
+.n .k{font-size:9.5px;letter-spacing:.16em;color:var(--dim)}
+.n .v{font-size:26px;font-weight:500;letter-spacing:-.02em;margin-top:10px;font-variant-numeric:tabular-nums}
+.n .v.dash{color:#C6C6BD;font-weight:400}
+.n .v small{font-size:10px;color:var(--dim);font-weight:400;margin-left:3px;letter-spacing:0}
+.n .f{font-size:10px;color:var(--dim);margin-top:5px}
+.n.on .v{color:var(--accent)}
+
+/* 清单 */
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:42px 0 8px}
+.sec h2{font-size:11px;font-weight:600;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.sec span{font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+.task{display:flex;align-items:flex-start;gap:14px;padding:17px 2px;border-bottom:1px solid var(--hair)}
+.task:last-of-type{border-bottom:0}
+.ring{width:22px;height:22px;border-radius:50%;border:1.5px solid #D8D8D0;flex:0 0 auto;margin-top:1px;position:relative}
+.task.done .ring{background:var(--accent);border-color:var(--accent)}
+.task.done .ring svg{position:absolute;inset:0;margin:auto;width:11px;height:11px;stroke:#fff;stroke-width:2.6;fill:none}
+.tx{flex:1}
+.tx h3{font-size:14px;font-weight:500;letter-spacing:.01em;line-height:1.5}
+.tx p{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.7}
+.task.done .tx h3{color:#ADADA4;text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:#D2D2C9}
+.task.done .tx p{color:#BEBEB6}
+
+/* 练后 */
+.post{
+  margin-top:26px;background:var(--card);border-radius:20px;padding:18px 20px;
+  box-shadow:0 1px 2px rgba(30,30,20,.04),0 10px 26px -16px rgba(30,30,20,.16);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.post .l b{font-size:13.5px;font-weight:600;letter-spacing:.01em}
+.post .l p{font-size:10.5px;color:var(--dim);margin-top:6px}
+.post .go{width:34px;height:34px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center}
+.post .go svg{width:12px;height:12px;stroke:var(--accent);stroke-width:2;fill:none}
+
+/* 周 */
+.week{display:flex;gap:6px;margin-top:14px}
+.wd{flex:1;text-align:center;padding:10px 0 9px;border-radius:12px}
+.wd .d{font-size:9.5px;color:var(--dim);letter-spacing:.06em}
+.wd .t{font-size:9.5px;color:var(--ink-2);margin-top:6px}
+.wd.now{background:var(--accent-soft)}
+.wd.now .d{color:var(--accent);font-weight:600}
+.wd.now .t{color:var(--accent);font-weight:600}
+.wd.rest .t{color:#C0C0B7}
+
+/* 底部 */
+.composer{position:sticky;bottom:0;margin:34px -26px 0;padding:16px 26px 22px;
+  background:linear-gradient(180deg,rgba(251,251,249,0) 0%,var(--bg) 34%);z-index:5}
+.cf{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:999px;padding:13px 16px;
+  box-shadow:0 1px 2px rgba(30,30,20,.05),0 6px 18px -10px rgba(30,30,20,.2)}
+.cf .ph{flex:1;font-size:12.5px;color:#A5A59C}
+.cf .send{width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.cf .send svg{width:12px;height:12px;stroke:#fff;stroke-width:2.2;fill:none}
+</style>
+</head>
+<body>
+<div class="stage">
+  <p class="cap"><b>③</b> 静谧 · Things 3 × Apple</p>
+  <div class="phone"><div class="screen">
+
+    <div class="sb">
+      <span>21:40</span>
+      <svg viewBox="0 0 20 12"><rect x="0" y="8" width="3" height="4"/><rect x="5" y="5" width="3" height="7"/><rect x="10" y="2" width="3" height="10"/><rect x="15" y="0" width="3" height="12" opacity=".3"/></svg>
+    </div>
+
+    <header class="hd">
+      <div class="date">1月20日 · 星期一</div>
+      <div class="status"><span class="pulse"></span>教练在线</div>
+      <h1>今天<span>上肢 · 4 项 · 约 45 分钟</span></h1>
+    </header>
+
+    <div class="brief">
+      <div class="who"><b>教练简报</b><span>08:12</span></div>
+      <p>今天主项卧推 <strong>30kg 4×6</strong>——重量不重要，轨迹重要：碰胸、锁死。睡前左手球感 5 分钟。</p>
+    </div>
+
+    <div class="nums">
+      <div class="n on"><div class="k">卧推</div><div class="v">30<small>kg</small></div><div class="f">上次全完成</div></div>
+      <div class="n"><div class="k">箱式半蹲</div><div class="v">52.5<small>kg</small></div><div class="f">个人纪录</div></div>
+      <div class="n"><div class="k">引体</div><div class="v dash">—</div><div class="f">待测</div></div>
+    </div>
+
+    <div class="sec"><h2>今日清单</h2><span>1 / 4</span></div>
+
+    <div class="task done">
+      <span class="ring"><svg viewBox="0 0 12 12"><path d="M2 6.4 4.6 9 10 3.2"/></svg></span>
+      <div class="tx"><h3>卧推 30kg × 4 × 6</h3><p>全幅度 · 碰胸停顿一秒</p></div>
+    </div>
+    <div class="task">
+      <span class="ring"></span>
+      <div class="tx"><h3>杠铃划船 3 × 8</h3><p>俯身四十五度，肘贴身后拉</p></div>
+    </div>
+    <div class="task">
+      <span class="ring"></span>
+      <div class="tx"><h3>哑铃肩推 3 × 10</h3><p>坐姿，别让腰替手臂发力</p></div>
+    </div>
+    <div class="task">
+      <span class="ring"></span>
+      <div class="tx"><h3>核心环 × 3</h3><p>死虫 → 鸟狗 → 侧平板，每轮不落地</p></div>
+    </div>
+
+    <div class="post">
+      <div class="l"><b>练后两问</b><p>难度 1–10 ＋ 哪里酸</p></div>
+      <div class="go"><svg viewBox="0 0 12 12"><path d="M4 2.5 8 6l-4 3.5"/></svg></div>
+    </div>
+
+    <div class="sec"><h2>本周</h2><span>第 4 周</span></div>
+    <div class="week">
+      <div class="wd now"><div class="d">一</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">二</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">三</div><div class="t">下肢</div></div>
+      <div class="wd rest"><div class="d">四</div><div class="t">休</div></div>
+      <div class="wd"><div class="d">五</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">六</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">日</div><div class="t">复盘</div></div>
+    </div>
+
+    <div class="composer">
+      <div class="cf">
+        <span class="ph">问教练：左膝有点紧，今天能练腿吗</span>
+        <span class="send"><svg viewBox="0 0 14 14"><path d="M2 12 12 2M5 2h7v7"/></svg></span>
+      </div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

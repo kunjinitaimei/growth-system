@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练 · 运动海报 · 成长系统 v2</title>
+<!-- ④ 运动海报 · Nike Training Club ／ 宣言：训练页不是表格，是一张贴在更衣室门上的今日海报 ／ 点睛色 #FF2D00 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#0A0A09; --black-2:#141413; --white:#F1EFE8; --dim:#8C8C84;
+  --red:#FF2D00; --line:rgba(241,239,232,.16);
+  --display:"Anton",Impact,"Haettenschweiler","PingFang SC","Microsoft YaHei",sans-serif;
+  --sans:"Inter",-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;display:flex;justify-content:center;padding:38px 16px 64px;
+  background:#000;font-family:var(--sans);color:var(--white);-webkit-font-smoothing:antialiased;
+}
+.stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+.cap{font-family:var(--display);font-size:12px;letter-spacing:.24em;color:#5E5E57;text-transform:uppercase}
+.cap b{color:var(--red)}
+.phone{
+  width:400px;height:848px;border-radius:26px;padding:6px;overflow:hidden;
+  background:#1B1B19;box-shadow:0 46px 80px -30px rgba(0,0,0,.95),0 0 0 1px #2A2A26;
+}
+.screen{height:100%;border-radius:21px;background:var(--black);overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+/* 斜向网格质感 */
+.screen::before{
+  content:"";position:absolute;inset:0 0 auto;height:300px;pointer-events:none;
+  background:repeating-linear-gradient(115deg,rgba(241,239,232,.055) 0 1px,transparent 1px 13px);
+  mask-image:linear-gradient(180deg,#000 40%,transparent 100%);
+  -webkit-mask-image:linear-gradient(180deg,#000 40%,transparent 100%);
+}
+/* 巨型水印数字 */
+.ghost{position:absolute;top:26px;right:-24px;font-family:var(--display);font-size:250px;line-height:1;
+  color:transparent;-webkit-text-stroke:1px rgba(241,239,232,.14);letter-spacing:-.04em;pointer-events:none}
+
+/* 顶栏 */
+.top{position:relative;padding:22px 22px 0;display:flex;justify-content:space-between;align-items:flex-start}
+.dt{font-family:var(--display);font-size:13px;letter-spacing:.16em}
+.dt em{display:block;font-family:var(--sans);font-style:normal;font-size:9px;letter-spacing:.24em;color:var(--dim);margin-top:5px}
+.live{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:.18em;color:var(--black);background:var(--white);padding:5px 8px}
+.live .d{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.8s steps(1,end) infinite}
+@keyframes blink{0%,60%{opacity:1}61%,100%{opacity:.15}}
+
+/* 巨标题 */
+.title{position:relative;padding:26px 22px 0;overflow:hidden}
+.title .l1{font-family:var(--display);font-size:104px;line-height:.82;letter-spacing:-.02em;
+  transform:skewX(-7deg);transform-origin:left bottom;white-space:nowrap}
+.title .l2{display:flex;align-items:baseline;gap:10px;margin-top:6px;transform:skewX(-7deg);transform-origin:left}
+.title .l2 span{font-family:var(--display);font-size:34px;letter-spacing:.02em;color:var(--red)}
+.title .l2 i{font-style:normal;font-size:10px;letter-spacing:.3em;color:var(--dim);font-family:var(--sans);font-weight:700}
+.title .mask{position:absolute;inset:0;background:var(--black);transform-origin:right;animation:wipe 1s cubic-bezier(.7,0,.2,1) .1s both}
+@keyframes wipe{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+/* 简报 */
+.brief{margin:24px 0 0;padding:14px 20px;background:var(--white);color:var(--black);transform:rotate(-1.2deg)}
+.brief .k{font-size:8.5px;font-weight:800;letter-spacing:.24em;color:#8A8A82}
+.brief p{font-size:13.5px;font-weight:700;line-height:1.75;margin-top:7px;letter-spacing:.01em}
+.brief b{color:var(--red)}
+
+/* 三数 */
+.stats{display:flex;flex-direction:column;margin-top:26px;padding:0 22px}
+.stat{display:flex;align-items:flex-end;justify-content:space-between;padding:13px 0;border-bottom:2px solid var(--line)}
+.stat:first-child{border-top:2px solid var(--line)}
+.stat .v{font-family:var(--display);font-size:46px;line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:15px;color:var(--dim);margin-left:4px;letter-spacing:.04em}
+.stat .k{text-align:right;padding-bottom:4px}
+.stat .k b{display:block;font-size:11px;font-weight:800;letter-spacing:.1em}
+.stat .k span{font-size:9px;color:var(--dim);letter-spacing:.12em}
+.stat.hot .v{color:var(--red)}
+
+/* 清单 */
+.shead{display:flex;align-items:baseline;justify-content:space-between;padding:0 22px;margin-top:30px}
+.shead h2{font-family:var(--display);font-size:22px;letter-spacing:.06em}
+.shead span{font-size:9px;font-weight:800;letter-spacing:.2em;color:var(--red)}
+.list{padding:0 22px;margin-top:10px}
+.row{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line)}
+.row .no{font-family:var(--display);font-size:15px;color:#4E4E47;width:22px;flex:0 0 auto}
+.row .t{flex:1}
+.row .t h3{font-size:14.5px;font-weight:800;letter-spacing:.01em;line-height:1.45}
+.row .t p{font-size:10px;color:var(--dim);margin-top:3px;letter-spacing:.04em}
+.row .ck{width:22px;height:22px;border:2px solid var(--line);flex:0 0 auto}
+.row.done .ck{background:var(--red);border-color:var(--red);display:flex;align-items:center;justify-content:center}
+.row.done .ck svg{width:12px;height:12px;stroke:#fff;stroke-width:3;fill:none}
+.row.done .t h3{color:#8F8F86}
+.row.done .no{color:var(--red)}
+
+/* 练后 */
+.post{margin:20px 22px 0;padding:16px 18px;border:2px solid var(--red);display:flex;align-items:center;justify-content:space-between}
+.post .l b{font-family:var(--display);font-size:18px;letter-spacing:.04em}
+.post .l p{font-size:10px;color:var(--dim);margin-top:5px;letter-spacing:.06em}
+.post .arw{font-family:var(--display);font-size:22px;color:var(--red)}
+
+/* 周 */
+.sec{padding:0 22px;display:flex;align-items:baseline;justify-content:space-between;margin-top:30px}
+.sec h2{font-family:var(--display);font-size:22px;letter-spacing:.06em}
+.sec span{font-size:9px;font-weight:800;letter-spacing:.2em;color:var(--dim)}
+.week{display:flex;padding:0 22px;margin-top:10px;gap:3px}
+.wd{flex:1;padding:9px 0 8px;text-align:center;background:#151513}
+.wd .d{font-size:8.5px;letter-spacing:.1em;color:#6B6B63;font-weight:800}
+.wd .t{font-size:9px;margin-top:5px;color:#B6B6AD;font-weight:700}
+.wd.now{background:var(--red)}
+.wd.now .d,.wd.now .t{color:#fff}
+.wd.rest .t{color:#5C5C55}
+
+/* 底部 */
+.composer{position:sticky;bottom:0;margin-top:26px;padding:14px 22px 20px;background:linear-gradient(180deg,rgba(10,10,9,0) 0%,var(--black) 32%);z-index:4}
+.cf{display:flex;align-items:center;gap:10px;background:var(--white);color:var(--black);padding:12px 14px}
+.cf .ph{flex:1;font-size:12px;font-weight:700;color:#7B7B73}
+.cf .send{width:28px;height:28px;background:var(--black);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.cf .send svg{width:12px;height:12px;stroke:var(--white);stroke-width:2.2;fill:none}
+.cfh{display:flex;justify-content:space-between;margin-top:9px;font-size:8.5px;font-weight:800;letter-spacing:.22em;color:#66665F}
+</style>
+</head>
+<body>
+<div class="stage">
+  <p class="cap"><b>④</b> 运动海报 · Nike Training Club</p>
+  <div class="phone"><div class="screen">
+    <div class="ghost">04</div>
+
+    <div class="top">
+      <div class="dt">JAN 20<em>星期一 · 上肢日</em></div>
+      <div class="live"><span class="d"></span>教练在线</div>
+    </div>
+
+    <div class="title">
+      <div class="l1">推到底</div>
+      <div class="l2"><span>30</span><i>KG × 4 × 6</i></div>
+      <div class="mask"></div>
+    </div>
+
+    <div class="brief">
+      <div class="k">COACH BRIEF 08:12</div>
+      <p>今天主项卧推 30kg 4×6——重量不重要，轨迹重要：<b>碰胸、锁死</b>。睡前左手球感 5 分钟。</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat hot">
+        <div class="v">30<small>KG</small></div>
+        <div class="k"><b>卧推</b><span>上次全完成</span></div>
+      </div>
+      <div class="stat">
+        <div class="v">52.5<small>KG</small></div>
+        <div class="k"><b>箱式半蹲</b><span>个人纪录</span></div>
+      </div>
+      <div class="stat">
+        <div class="v">—</div>
+        <div class="k"><b>引体</b><span>待测</span></div>
+      </div>
+    </div>
+
+    <div class="shead"><h2>今日四项</h2><span>1 / 4</span></div>
+    <div class="list">
+      <div class="row done">
+        <span class="no">01</span>
+        <div class="t"><h3>卧推 30kg × 4 × 6</h3><p>全幅度 · 碰胸停顿一秒</p></div>
+        <span class="ck"><svg viewBox="0 0 12 12"><path d="M2 6.4 4.6 9 10 3.2"/></svg></span>
+      </div>
+      <div class="row">
+        <span class="no">02</span>
+        <div class="t"><h3>杠铃划船 3 × 8</h3><p>俯身四十五度 · 肘贴身后拉</p></div>
+        <span class="ck"></span>
+      </div>
+      <div class="row">
+        <span class="no">03</span>
+        <div class="t"><h3>哑铃肩推 3 × 10</h3><p>坐姿 · 别让腰替手臂发力</p></div>
+        <span class="ck"></span>
+      </div>
+      <div class="row">
+        <span class="no">04</span>
+        <div class="t"><h3>核心环 × 3</h3><p>死虫 → 鸟狗 → 侧平板 · 每轮不落地</p></div>
+        <span class="ck"></span>
+      </div>
+    </div>
+
+    <div class="post">
+      <div class="l"><b>练后两问</b><p>难度 1–10 ＋ 哪里酸</p></div>
+      <div class="arw">→</div>
+    </div>
+
+    <div class="sec"><h2>本周</h2><span>WEEK 04</span></div>
+    <div class="week">
+      <div class="wd now"><div class="d">一</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">二</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">三</div><div class="t">下肢</div></div>
+      <div class="wd rest"><div class="d">四</div><div class="t">休</div></div>
+      <div class="wd"><div class="d">五</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">六</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">日</div><div class="t">复盘</div></div>
+    </div>
+
+    <div class="composer">
+      <div class="cf">
+        <span class="ph">问教练：左膝有点紧，今天能练腿吗</span>
+        <span class="send"><svg viewBox="0 0 14 14"><path d="M2 12 12 2M5 2h7v7"/></svg></span>
+      </div>
+      <div class="cfh"><span>HOLD TO TALK</span><span>21:40</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

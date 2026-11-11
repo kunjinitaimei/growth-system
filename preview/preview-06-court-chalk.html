@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练 · 球场粉笔 · 成长系统 v2</title>
+<!-- ⑥ 球场粉笔（自创）／ 宣言：把训练页做成球馆战术板，粉笔写着今天的活，擦掉就重新开始 ／ 点睛色 #FF6B2C -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --court:#0D1A15; --court-2:#122219; --chalk:#EBE6D7; --chalk-2:#B9B4A4;
+  --dim:#7E8A80; --line:rgba(235,230,215,.16);
+  --orange:#FF6B2C;
+  --stencil:"Bebas Neue","Haettenschweiler","PingFang SC","Microsoft YaHei",sans-serif;
+  --sans:"Inter",-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;display:flex;justify-content:center;padding:38px 16px 64px;
+  background:#070C0A;font-family:var(--sans);color:var(--chalk);-webkit-font-smoothing:antialiased;
+}
+.stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+.cap{font-family:var(--stencil);font-size:13px;letter-spacing:.3em;color:#5B6A60;text-transform:uppercase}
+.cap b{color:var(--orange)}
+.phone{
+  width:400px;height:848px;border-radius:30px;padding:7px;position:relative;
+  background:linear-gradient(170deg,#1D2A22,#0A120E 55%,#18231C);
+  box-shadow:0 50px 90px -32px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.07);
+}
+.screen{height:100%;border-radius:24px;background:var(--court);overflow-y:auto;overflow-x:hidden;
+  position:relative;padding:0 22px;scrollbar-width:none}
+.screen::-webkit-scrollbar{display:none}
+
+/* 球场线 */
+.court-lines{position:absolute;top:0;left:-40px;width:480px;height:520px;pointer-events:none;opacity:.5}
+.court-lines svg{width:100%;height:100%}
+/* 粉笔灰 */
+.screen::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:8;mix-blend-mode:screen;opacity:.55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E");
+}
+.screen::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:7;
+  background:radial-gradient(120% 80% at 50% 0,rgba(255,107,44,.10),transparent 60%)}
+
+/* 顶栏 */
+.top{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;padding:18px 0 0}
+.dt{font-family:var(--stencil);font-size:20px;letter-spacing:.14em}
+.dt em{display:block;font-family:var(--sans);font-style:normal;font-size:9.5px;letter-spacing:.28em;color:var(--dim);margin-top:3px}
+.circle{
+  width:74px;height:74px;border:1.5px solid rgba(255,107,44,.75);border-radius:48% 52% 46% 54%/54% 46% 54% 46%;
+  transform:rotate(-7deg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  animation:chalkBreathe 3.4s ease-in-out infinite;
+}
+.circle b{font-size:10px;color:var(--orange);letter-spacing:.04em}
+.circle span{font-size:7.5px;color:var(--dim);letter-spacing:.06em}
+@keyframes chalkBreathe{0%,100%{opacity:.55;transform:rotate(-7deg) scale(.97)}50%{opacity:1;transform:rotate(-7deg) scale(1.02)}}
+
+/* 标题 */
+.hero{position:relative;z-index:2;margin-top:22px;transform:rotate(-1.4deg)}
+.hero .k{font-size:9.5px;letter-spacing:.26em;color:var(--chalk-2)}
+.hero h1{font-size:64px;line-height:.94;font-weight:800;letter-spacing:.02em;margin-top:9px}
+.hero h1 span{color:var(--orange)}
+.swash{margin-top:2px;display:block}
+
+/* 简报 */
+.brief{position:relative;z-index:2;margin-top:18px;padding:14px 16px 15px;transform:rotate(.7deg);
+  border:1.5px dashed rgba(235,230,215,.4);border-radius:14px 5px 16px 6px}
+.brief .k{font-family:var(--stencil);font-size:12px;letter-spacing:.24em;color:var(--orange)}
+.brief p{font-size:13px;line-height:1.95;color:#D8D3C3;margin-top:8px}
+.brief b{color:#fff;border-bottom:2px solid rgba(255,107,44,.6)}
+
+/* 三数 */
+.stats{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:24px}
+.st .k{font-size:9px;letter-spacing:.16em;color:var(--dim)}
+.st .v{font-family:var(--stencil);font-size:38px;line-height:1;margin-top:7px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.st .v small{font-size:12px;color:var(--dim);margin-left:2px;letter-spacing:.06em}
+.st .u{height:5px;margin-top:5px;opacity:.85}
+.st .f{font-size:8.5px;color:var(--chalk-2);margin-top:5px;letter-spacing:.04em}
+.st:first-child .v{color:var(--orange)}
+
+/* 清单 */
+.shead{position:relative;z-index:2;display:flex;align-items:baseline;justify-content:space-between;margin-top:30px}
+.shead h2{font-size:15px;font-weight:800;letter-spacing:.14em}
+.shead span{font-family:var(--stencil);font-size:12px;letter-spacing:.16em;color:var(--orange)}
+.todo{position:relative;z-index:2;display:grid;grid-template-columns:30px 1fr;gap:11px;padding:13px 0;
+  border-bottom:1px dashed rgba(235,230,215,.14)}
+.todo .bx{width:22px;height:22px;border:1.5px solid rgba(235,230,215,.45);border-radius:4px 6px 5px 3px;
+  margin-top:1px;display:flex;align-items:center;justify-content:center;transform:rotate(-2deg)}
+.todo.done .bx{border-color:var(--orange);background:rgba(255,107,44,.12)}
+.todo.done .bx svg{width:14px;height:14px;stroke:var(--orange);stroke-width:2.6;fill:none}
+.todo .t h3{font-size:13px;font-weight:600;line-height:1.55}
+.todo .t p{font-size:9.5px;color:var(--dim);margin-top:3px;letter-spacing:.02em}
+.todo.done .t h3{color:#8D968C}
+.todo.done .t h3 s{text-decoration-color:rgba(255,107,44,.55)}
+
+/* 练后 */
+.post{position:relative;z-index:2;margin-top:20px;padding:14px 16px;transform:rotate(-.8deg);
+  background:rgba(255,107,44,.07);border-left:3px solid var(--orange);border-radius:3px 12px 3px 12px}
+.post .l b{font-size:13px;font-weight:800;letter-spacing:.06em}
+.post .l p{font-size:9.5px;color:var(--chalk-2);margin-top:5px;letter-spacing:.06em}
+.post .lines{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.post .ln{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--dim)}
+.post .ln i{flex:1;border-bottom:1px dashed rgba(235,230,215,.35);height:1px}
+
+/* 周 */
+.week{position:relative;z-index:2;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:12px}
+.wd{position:relative;text-align:center;padding:10px 0 9px;border:1px solid rgba(235,230,215,.14);border-radius:4px 7px 5px 6px}
+.wd .d{font-family:var(--stencil);font-size:12px;letter-spacing:.1em;color:var(--dim)}
+.wd .t{font-size:8.5px;color:var(--chalk-2);margin-top:5px;line-height:1.3}
+.wd.now{border-color:var(--orange);background:rgba(255,107,44,.1)}
+.wd.now .d,.wd.now .t{color:var(--orange)}
+.wd.rest .t{color:#5B6A60}
+/* 轨迹线 */
+.trail{position:relative;z-index:1;height:16px;margin-top:-3px}
+.trail svg{width:100%;height:100%}
+.trail path{stroke-dasharray:5 7;animation:drift 3.2s linear infinite}
+@keyframes drift{to{stroke-dashoffset:-24}}
+
+/* 底 */
+.composer{position:sticky;bottom:0;z-index:6;margin:20px -22px 0;padding:14px 22px 20px;
+  background:linear-gradient(180deg,rgba(13,26,21,0) 0%,var(--court) 32%)}
+.cf{display:flex;align-items:center;gap:10px;border-bottom:1.5px dashed rgba(235,230,215,.4);padding-bottom:9px}
+.cf .ph{flex:1;font-size:12px;color:#8B968C}
+.cf .send{font-family:var(--stencil);font-size:13px;letter-spacing:.16em;color:var(--orange)}
+.cfh{display:flex;justify-content:space-between;margin-top:8px;font-size:8px;letter-spacing:.24em;color:#4C5A51}
+</style>
+</head>
+<body>
+<div class="stage">
+  <p class="cap"><b>⑥</b> 球场粉笔 · COURT CHALK</p>
+  <div class="phone"><div class="screen">
+
+    <div class="court-lines">
+      <svg viewBox="0 0 480 520" fill="none" stroke="rgba(235,230,215,.13)" stroke-width="1.2">
+        <path d="M-40 250h560"/>
+        <circle cx="240" cy="250" r="72"/>
+        <path d="M-40 60h120v380H-40"/>
+        <path d="M80 130v240"/>
+        <path d="M-40 400c120-30 200-90 240-150s120-120 240-150"/>
+        <path d="M320 250a80 80 0 0 1-160 0"/>
+      </svg>
+    </div>
+
+    <div class="top">
+      <div class="dt">JAN 20<em>星期一 · 上肢日</em></div>
+      <div class="circle"><b>教练在线</b><span>08:12 起</span></div>
+    </div>
+
+    <div class="hero">
+      <div class="k">今天只做一件事</div>
+      <h1>碰胸<br><span>锁死</span></h1>
+      <svg class="swash" width="150" height="10" viewBox="0 0 150 10" fill="none">
+        <path d="M2 7c22-5 44 2 66-1s48-4 80 1" stroke="#FF6B2C" stroke-width="2.4" stroke-linecap="round" opacity=".85"/>
+      </svg>
+    </div>
+
+    <div class="brief">
+      <div class="k">COACH BRIEF</div>
+      <p>今天主项卧推 <b>30kg 4×6</b>——重量不重要，轨迹重要：碰胸、锁死。睡前左手球感 5 分钟。</p>
+    </div>
+
+    <div class="stats">
+      <div class="st">
+        <div class="k">卧推</div><div class="v">30<small>kg</small></div>
+        <svg class="u" width="52" height="5" viewBox="0 0 52 5" fill="none"><path d="M1 3.4C11 1.2 20 4.2 31 2.6s16-.6 20 .4" stroke="#EBE6D7" stroke-width="1.4" stroke-linecap="round" opacity=".55"/></svg>
+        <div class="f">上次全完成</div>
+      </div>
+      <div class="st">
+        <div class="k">箱式半蹲</div><div class="v">52.5<small>kg</small></div>
+        <svg class="u" width="52" height="5" viewBox="0 0 52 5" fill="none"><path d="M1 2.8C10 4.6 22 1.2 32 3s14-.8 19 .2" stroke="#EBE6D7" stroke-width="1.4" stroke-linecap="round" opacity=".55"/></svg>
+        <div class="f">个人纪录</div>
+      </div>
+      <div class="st">
+        <div class="k">引体</div><div class="v">—</div>
+        <svg class="u" width="52" height="5" viewBox="0 0 52 5" fill="none"><path d="M1 3.2C12 2.4 21 3.8 33 2.4s13 .2 18 .8" stroke="#EBE6D7" stroke-width="1.4" stroke-linecap="round" opacity=".55"/></svg>
+        <div class="f">待测</div>
+      </div>
+    </div>
+
+    <div class="shead"><h2>今日四项</h2><span>1 / 4</span></div>
+
+    <div class="todo done">
+      <span class="bx"><svg viewBox="0 0 14 14"><path d="M1.6 7.2 5 11 13 2.2"/></svg></span>
+      <div class="t"><h3><s>卧推 30kg × 4 × 6</s></h3><p>全幅度 · 碰胸停顿一秒</p></div>
+    </div>
+    <div class="todo">
+      <span class="bx"></span>
+      <div class="t"><h3>杠铃划船 3 × 8</h3><p>俯身四十五度，肘贴身后拉</p></div>
+    </div>
+    <div class="todo">
+      <span class="bx"></span>
+      <div class="t"><h3>哑铃肩推 3 × 10</h3><p>坐姿，别让腰替手臂发力</p></div>
+    </div>
+    <div class="todo">
+      <span class="bx"></span>
+      <div class="t"><h3>核心环 × 3</h3><p>死虫 → 鸟狗 → 侧平板，每轮不落地</p></div>
+    </div>
+
+    <div class="post">
+      <div class="l"><b>练后两问</b><p>不用写长，两笔就行</p></div>
+      <div class="lines">
+        <div class="ln"><span>难度</span><i></i><span>/ 10</span></div>
+        <div class="ln"><span>哪里酸</span><i></i></div>
+      </div>
+    </div>
+
+    <div class="shead"><h2>本周</h2><span>WEEK 04</span></div>
+    <div class="week">
+      <div class="wd now"><div class="d">一</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">二</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">三</div><div class="t">下肢</div></div>
+      <div class="wd rest"><div class="d">四</div><div class="t">休</div></div>
+      <div class="wd"><div class="d">五</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">六</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">日</div><div class="t">复盘</div></div>
+    </div>
+    <div class="trail">
+      <svg viewBox="0 0 356 16" fill="none">
+        <path d="M6 12C60 2 140 14 200 6s110 6 146-2" stroke="#FF6B2C" stroke-width="1.4" opacity=".6"/>
+      </svg>
+    </div>
+
+    <div class="composer">
+      <div class="cf"><span class="ph">问教练：左膝有点紧，今天能练腿吗</span><span class="send">发送</span></div>
+      <div class="cfh"><span>COURT CHALK · 训练板</span><span>21:40</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>

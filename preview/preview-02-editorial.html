@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练 · 编辑部 · 成长系统 v2</title>
+<!-- ② 编辑部 · NYT Cooking × Kinfolk ／ 宣言：每天的训练是一期只有一个人读的日报，排版要值得被剪下来 ／ 点睛色 #A8482B -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4EFE4; --paper-2:#EDE6D8; --ink:#191410; --ink-2:#4A423A;
+  --rule:#CFC4AE; --rule-2:#DED5C3;
+  --accent:#A8482B; --olive:#5A6146;
+  --serif:"Newsreader","Noto Serif SC","Songti SC","STSong",SimSun,serif;
+  --sans:-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh;display:flex;justify-content:center;padding:38px 16px 64px;
+  background:#2A2620;font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;
+}
+.stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+.cap{font-family:var(--serif);font-size:12px;letter-spacing:.22em;color:#8C8272;text-transform:uppercase;font-style:italic}
+.cap b{color:var(--accent);font-style:normal}
+.phone{
+  width:400px;height:848px;padding:7px;border-radius:6px;
+  background:#191512;box-shadow:0 44px 80px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.06);
+}
+.screen{
+  height:100%;overflow-y:auto;overflow-x:hidden;padding:0 22px 0;position:relative;
+  background:var(--paper);scrollbar-width:none;
+}
+.screen::-webkit-scrollbar{display:none}
+/* 纸纹质感层 */
+.screen::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:9;mix-blend-mode:multiply;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+}
+
+/* 刊头 */
+.rail{display:flex;justify-content:space-between;align-items:center;padding:16px 0 8px;
+  font-family:var(--serif);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-2)}
+.nameplate{
+  font-family:var(--serif);font-size:13px;letter-spacing:.5em;text-align:center;
+  padding:9px 0 8px;border-top:3px double var(--ink);border-bottom:1px solid var(--ink);
+}
+.meta{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule-2);
+  font-family:var(--serif);font-style:italic;font-size:11px;color:var(--ink-2);letter-spacing:.04em}
+.live{display:inline-flex;align-items:center;gap:6px;font-style:normal;font-family:var(--sans);font-size:9.5px;letter-spacing:.18em;color:var(--olive)}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--olive);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* 头条 */
+.kicker{margin-top:20px;font-family:var(--serif);font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent)}
+.headline{
+  font-family:var(--serif);font-weight:600;font-size:44px;line-height:1.08;letter-spacing:.01em;
+  margin:10px 0 0;animation:ink .8s ease-out both;
+}
+@keyframes ink{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.headline i{font-style:normal;color:var(--accent)}
+.dek{
+  font-family:var(--serif);font-size:14.5px;line-height:2.05;color:var(--ink-2);
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--rule-2);text-align:justify;
+}
+.dek b{color:var(--ink);font-weight:600;border-bottom:1px solid rgba(168,72,43,.5)}
+.byline{display:flex;justify-content:space-between;margin-top:12px;font-size:9.5px;letter-spacing:.16em;color:#8A7F6D}
+
+/* 数字栏 */
+.numbers{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:24px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.nb{padding:14px 10px 15px;border-right:1px solid var(--rule-2)}
+.nb:last-child{border-right:0;padding-right:0}
+.nb .lab{font-size:9px;letter-spacing:.2em;color:#8A7F6D}
+.nb .val{font-family:var(--serif);font-size:34px;line-height:1;margin-top:9px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.nb .val small{font-family:var(--serif);font-size:12px;font-style:italic;color:var(--ink-2);margin-left:2px}
+.nb .src{font-family:var(--serif);font-style:italic;font-size:10.5px;color:#8A7F6D;margin-top:7px}
+.nb.hi .val{color:var(--accent)}
+
+/* 清单 */
+.sec{margin-top:26px;display:flex;align-items:baseline;justify-content:space-between;
+  padding-bottom:7px;border-bottom:1px solid var(--ink)}
+.sec h2{font-family:var(--serif);font-size:15px;font-weight:600;letter-spacing:.12em}
+.sec span{font-size:9px;letter-spacing:.2em;color:#8A7F6D}
+
+.item{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:13px 0;border-bottom:1px solid var(--rule-2)}
+.item .no{font-family:var(--serif);font-size:12px;font-style:italic;color:#9C907C;padding-top:2px}
+.item h3{font-size:13.5px;font-weight:600;line-height:1.55;letter-spacing:.01em}
+.item p{font-family:var(--serif);font-size:11.5px;font-style:italic;color:#7E7361;margin-top:4px;line-height:1.7}
+.item.done .no{color:var(--accent)}
+.item.done h3{color:#8C8170;text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:rgba(168,72,43,.4)}
+.item.done p{text-decoration:none}
+.tick{display:inline-block;margin-left:6px;font-style:normal;color:var(--accent);font-size:11px;vertical-align:1px}
+
+/* 练后 */
+.post{margin-top:22px;padding:15px 16px 16px;background:var(--paper-2);border:1px solid var(--rule)}
+.post .ph{font-family:var(--serif);font-size:13px;letter-spacing:.1em}
+.post .ph em{font-style:italic;font-size:11px;color:#8A7F6D;margin-left:6px}
+.rate{display:flex;align-items:baseline;justify-content:space-between;margin-top:14px;font-size:11px;color:var(--ink-2)}
+.rate .box{font-family:var(--serif);font-style:italic;font-size:11px;color:#A19682;border-bottom:1px solid var(--rule);flex:1;margin:0 10px;text-align:center;padding-bottom:3px}
+.sore-line{display:flex;align-items:baseline;margin-top:12px;font-size:11px;color:var(--ink-2)}
+.sore-line .box{flex:1;margin:0 10px;border-bottom:1px solid var(--rule);padding-bottom:3px;font-family:var(--serif);font-style:italic;color:#A19682;text-align:center}
+
+/* 周 */
+.week{display:grid;grid-template-columns:repeat(7,1fr);margin-top:24px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
+.wd{padding:10px 0 11px;text-align:center;border-right:1px solid var(--rule-2)}
+.wd:last-child{border-right:0}
+.wd .d{font-family:var(--serif);font-size:9px;letter-spacing:.1em;color:#8A7F6D}
+.wd .t{font-size:9.5px;margin-top:6px;color:var(--ink-2);line-height:1.4}
+.wd.now{background:#EAE2D2;position:relative}
+.wd.now .d{color:var(--accent);font-style:italic}
+.wd.now .t{color:var(--ink);font-weight:600}
+.wd.now::before{content:"";position:absolute;top:-1px;left:0;right:0;height:2px;background:var(--accent)}
+.wd.rest .t{color:#A19682}
+
+/* 底栏 */
+.composer{position:sticky;bottom:0;margin:24px -22px 0;padding:14px 22px 20px;
+  background:linear-gradient(180deg,rgba(244,239,228,0) 0%,var(--paper) 30%);z-index:6}
+.cf{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ink);padding-bottom:8px}
+.cf .ph{flex:1;font-family:var(--serif);font-size:13px;font-style:italic;color:#8A7F6D}
+.cf .send{font-size:9px;letter-spacing:.2em;color:var(--accent);font-weight:600}
+.cfh{display:flex;justify-content:space-between;margin-top:7px;font-size:8.5px;letter-spacing:.18em;color:#A99D88}
+</style>
+</head>
+<body>
+<div class="stage">
+  <p class="cap"><b>②</b> 编辑部 · NYT Cooking × Kinfolk</p>
+  <div class="phone"><div class="screen">
+
+    <div class="rail"><span>成长系统 · 训练</span><span>NO. 07</span></div>
+    <div class="nameplate">训练日报</div>
+    <div class="meta">
+      <span>1月20日 · 星期一</span>
+      <span class="live"><span class="dot"></span>教练在线</span>
+    </div>
+
+    <div class="kicker">今日主项 · 卧推</div>
+    <h1 class="headline">先碰胸，<br>再<i>锁死</i>。</h1>
+    <p class="dek">今天主项卧推 <b>30kg 4×6</b>——重量不重要，轨迹重要：碰胸、锁死。睡前左手球感 5 分钟。</p>
+    <div class="byline"><span>教练简报 · 08:12</span><span>阅读约 40 秒</span></div>
+
+    <div class="numbers">
+      <div class="nb hi">
+        <div class="lab">卧推</div><div class="val">30<small>kg</small></div><div class="src">上次全完成</div>
+      </div>
+      <div class="nb">
+        <div class="lab">箱式半蹲</div><div class="val">52.5<small>kg</small></div><div class="src">个人纪录</div>
+      </div>
+      <div class="nb">
+        <div class="lab">引体</div><div class="val">待测</div><div class="src">本周补测</div>
+      </div>
+    </div>
+
+    <div class="sec"><h2>今日四项</h2><span>1 / 4 完成</span></div>
+
+    <div class="item done">
+      <div class="no">01</div>
+      <div><h3>卧推 30kg × 4 × 6<span class="tick">✓</span></h3><p>全幅度 · 碰胸停顿一秒</p></div>
+    </div>
+    <div class="item">
+      <div class="no">02</div>
+      <div><h3>杠铃划船 3 × 8</h3><p>俯身四十五度，肘贴身后拉</p></div>
+    </div>
+    <div class="item">
+      <div class="no">03</div>
+      <div><h3>哑铃肩推 3 × 10</h3><p>坐姿，别让腰替手臂发力</p></div>
+    </div>
+    <div class="item">
+      <div class="no">04</div>
+      <div><h3>核心环 × 3</h3><p>死虫 → 鸟狗 → 侧平板，每轮不落地</p></div>
+    </div>
+
+    <div class="post">
+      <div class="ph">练后回信<em>两句话就够</em></div>
+      <div class="rate"><span>难度</span><span class="box">1 — 10</span><span>/ 10</span></div>
+      <div class="sore-line"><span>哪里酸</span><span class="box">写下部位</span></div>
+    </div>
+
+    <div class="sec"><h2>本周编排</h2><span>W04</span></div>
+    <div class="week">
+      <div class="wd now"><div class="d">一</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">二</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">三</div><div class="t">下肢</div></div>
+      <div class="wd rest"><div class="d">四</div><div class="t">休</div></div>
+      <div class="wd"><div class="d">五</div><div class="t">上肢</div></div>
+      <div class="wd"><div class="d">六</div><div class="t">球·左手</div></div>
+      <div class="wd"><div class="d">日</div><div class="t">复盘</div></div>
+    </div>
+
+    <div class="composer">
+      <div class="cf"><span class="ph">写给教练：左膝有点紧，今天能练腿吗</span><span class="send">发送</span></div>
+      <div class="cfh"><span>第 07 期 · 训练日志</span><span>21:40</span></div>
+    </div>
+
+  </div></div>
+</div>
+</body>
+</html>
