@@ -206,10 +206,6 @@
   function isAvoid(name) {
     return (state.profile.avoid || []).some(function (a) { return a && name.indexOf(a) > -1; });
   }
-  function subjectName(id) {
-    var s = SUBJECTS.filter(function (x) { return x.id === id; })[0];
-    return s ? s.name : '英语';
-  }
 
   /* ---------------- 训练数据 ---------------- */
   function planOf(k) { return TRAIN_PLAN[parseKey(k).getDay()]; }
@@ -247,39 +243,137 @@
     save(); queueSync();
   }
 
-  /* ---------------- 学习数据 ---------------- */
-  var SUBJECTS = [
-    { id: 'english', name: '英语' },
-    { id: 'anatomy', name: '运动解剖' },
-    { id: 'reading', name: '自由阅读' }
+  /* ---------------- 学习：日期驱动的每日计划 ---------------- */
+  var PLAN_START = '2026-11-11';
+
+  /* 英语：刘晓艳四级课 + 真题，12 周循环，逐周推进 */
+  var EN_WEEKS = [
+    { t: '词汇打底 · 短篇新闻', unit: '刘晓艳词汇 Unit 1–3', q: '听力短篇新闻', n: '真题短篇新闻 2 篇，每篇 3 分钟', tip: '新闻第一句必出主旨；听到数字立刻写下来，别等听完再回忆。' },
+    { t: '数字与时间 · 短篇新闻', unit: '刘晓艳词汇 Unit 4–6', q: '听力短篇新闻', n: '真题短篇新闻 3 篇，精听其中 1 篇', tip: '精听＝逐句写下来再对原文，错的信息词抄在本子上。' },
+    { t: '长对话入门', unit: '刘晓艳词汇 Unit 7–9', q: '长对话', n: '真题长对话 1 组，做完对答案', tip: '先看选项猜场景：选课、租房、面试、看病，场景词先入脑。' },
+    { t: '长对话态度题', unit: '刘晓艳词汇 Unit 10–12', q: '长对话', n: '真题长对话 2 组 + 跟读 5 分钟', tip: '转折词 but / actually 后面才是答案，前面全是铺垫。' },
+    { t: '听力篇章', unit: '刘晓艳词汇 Unit 13–15', q: '听力篇章', n: '真题篇章 2 篇 + 逐句精听 1 篇', tip: '听结构：总—分—例。例子题一定在"for example"之后。' },
+    { t: '选词填空', unit: '刘晓艳词汇 Unit 16–18', q: '选词填空', n: '真题选词填空 1 篇（10 空）', tip: '先判词性再看意思，15 个词只有 10 个用得上，划掉用过的。' },
+    { t: '仔细阅读 A', unit: '刘晓艳词汇 Unit 19–21', q: '仔细阅读', n: '真题仔细阅读 2 篇，每篇 8 分钟', tip: '题干关键词回原文定位，答案几乎都是同义替换，不是原词。' },
+    { t: '仔细阅读 B · 干扰项', unit: '刘晓艳词汇 Unit 22–24', q: '仔细阅读', n: '真题 2 篇 + 错题归因', tip: '干扰项三种：绝对化、偷换对象、无中生有。选完给自己说理由。' },
+    { t: '长篇阅读（匹配）', unit: '刘晓艳词汇 Unit 25–27', q: '长篇阅读', n: '真题 1 篇（10 题，15 分钟）', tip: '先读 10 个题干圈名词，再扫读段落，只找同义替换。' },
+    { t: '翻译', unit: '刘晓艳词汇 Unit 28–30', q: '翻译', n: '真题 1 段（30 分钟，先自己写再对答案）', tip: '拆句→找主干→加修饰。不会的词用简单词代替，别空着。' },
+    { t: '写作', unit: '刘晓艳词汇 Unit 31–33', q: '写作', n: '模板仿写 1 篇（30 分钟）', tip: '三段：现象—原因—建议。每段第一句必须清楚，阅卷只看这个。' },
+    { t: '整套模拟', unit: '复习全部单词', q: '全卷', n: '真题 1 套（125 分钟，按考试时间计时）', tip: '按考试顺序做，写作放最后 30 分钟。做完只做一件事：把错题原因写下来。' }
   ];
-  var ANATOMY_STEPS = [
-    { t: '第 1 步 · 建骨架', d: '只认骨骼和四个关节：肩、髋、膝、踝。今天从膝开始——股骨、胫骨、髌骨，先在书上找到，再摸自己的膝盖对上。' },
-    { t: '第 2 步 · 挂肌肉', d: '每块肌肉只记三件事：起点、止点、功能。别背整段文字，用手在自己身上找出位置，摸到了才算会。' },
-    { t: '第 3 步 · 配图谱', d: '教材配一本彩色图谱（奈特）或手机装 Complete Anatomy 看 3D。文字 + 图像 + 手感，三条一起记才留得住。' },
-    { t: '第 4 步 · 再啃难的', d: '神经、循环、生物力学放到最后。前面三样不牢，直接看这些只会挫败。' }
+
+  /* CSCS：12 周，每天读书 + 输出 + 自测 */
+  var CSCS_WEEKS = [
+    { t: '神经肌肉系统', book: '《CSCS》第 1 章 · 肌纤维类型与运动单位', out: '用自己的话写 3 句：为什么大重量能练力量？', quiz: '自测 5 题（运动单位募集顺序）' },
+    { t: '生物力学', book: '《CSCS》第 2 章 · 杠杆、力矩、力—速度关系', out: '用深蹲举例写清"力矩"和"力臂"', quiz: '自测 5 题（杠杆分类）' },
+    { t: '内分泌与代谢', book: '《CSCS》第 3 章 · 激素对训练的反应', out: '写清睾酮、皮质醇和训练量的关系', quiz: '自测 5 题（激素功能配对）' },
+    { t: '营养', book: '《CSCS》第 4 章 · 宏量营养素与补剂', out: '给自己算一遍：72kg 一天该吃多少克蛋白', quiz: '自测 5 题（蛋白质与碳水推荐量）' },
+    { t: '测试与评估', book: '《CSCS》第 11 章 · 效度、信度、1RM 测试', out: '设计一个 5 分钟的热身评估流程，明天在队里试', quiz: '自测 5 题（测试顺序与效度）' },
+    { t: '动作技术 · 力量', book: '《CSCS》第 12 章 · 深蹲、硬拉、卧推要点', out: '写出深蹲最常见的 5 个错误和纠正方法', quiz: '自测 5 题（技术要点）' },
+    { t: '动作技术 · 爆发', book: '《CSCS》第 13 章 · 奥举与增强式训练', out: '写清高翻的发力顺序：一拉、二拉、接铃', quiz: '自测 5 题（增强式禁忌）' },
+    { t: '速度与灵敏', book: '《CSCS》第 14 章 · 加速、最大速度、变向', out: '设计一个 15 分钟的变向练习，明天在球场试', quiz: '自测 5 题（灵敏训练变量）' },
+    { t: '有氧耐力与恢复', book: '《CSCS》第 15 章 · 能量系统与间歇训练', out: '写清 HIIT 和长时间慢跑各练什么', quiz: '自测 5 题（能量系统判定）' },
+    { t: '程序设计', book: '《CSCS》第 16–17 章 · 需求分析与训练变量', out: '给现在的自己写一份一周力量计划', quiz: '自测 5 题（组数次数安排）' },
+    { t: '周期化与组织管理', book: '《CSCS》第 18–22 章 · 周期化、设施、法律', out: '说清线性周期和板块周期的区别', quiz: '自测 5 题（周期化模型）' },
+    { t: '全真模拟', book: '全书复盘 · 只看自己标注的错点', out: '把 12 周的输出翻一遍，挑 3 条写进笔记', quiz: '模拟 50 题，记录正确率' }
   ];
+
+  /* 每天的任务不一样：同一周内 7 天各有分工 */
+  var EN_ROLES = [
+    function (w) { return [
+      { t: '背单词 20 个', d: w.unit + '，先复习昨天错的，再背新的' },
+      { t: w.q + ' · 方法', d: w.tip },
+      { t: '真题', d: w.n }]; },
+    function (w) { return [
+      { t: '复习单词 20 个', d: '只复习不背新的，错的抄三遍' },
+      { t: '同题型加练', d: w.q + ' 1 组，限时做，做完立刻对答案' },
+      { t: '精听 5 分钟', d: '挑一句听不懂的，逐词写下来再对原文' }]; },
+    function (w) { return [
+      { t: '背单词 30 个', d: w.unit },
+      { t: '错题回看', d: '把昨天的错题重做一遍，写清为什么错' },
+      { t: '真题', d: w.n }]; },
+    function (w) { return [
+      { t: '复习单词', d: '昨天那 30 个遮住中文自测一遍' },
+      { t: '限时训练', d: w.q + '：8 分钟 4 题，逼自己提速' },
+      { t: '长难句 1 句', d: '拆主干：主语、谓语、宾语分别是哪个' }]; },
+    function (w) { return [
+      { t: '背单词 20 个', d: w.unit },
+      { t: '真题', d: w.n },
+      { t: '跟读 5 分钟', d: '跟读真题听力，模仿语音语调，别默读' }]; },
+    function (w) { return [
+      { t: '单词抽查', d: '自己抽查 20 个，错的标记进错题本' },
+      { t: '真题', d: w.n },
+      { t: '写 3 句', d: '用今天学的词写 3 句关于训练的话，明天交给 AI 改' }]; },
+    function (w) { return [
+      { t: '本周单词测', d: '本周 ' + w.unit + ' 自测，错的全部进错题本' },
+      { t: '错题重做', d: '本周错题过一遍，还错的重点标出来' },
+      { t: '周末整套', d: w.q === '全卷' ? '真题 1 套，125 分钟计时，按考试顺序做' : '听力或阅读整块 30 分钟，模拟考试节奏' }]; }
+  ];
+
+  var CSCS_ROLES = [
+    function (w) { return [
+      { t: '读新章', d: w.book + '，30 分钟，只读一遍，圈生词' },
+      { t: '输出', d: w.out },
+      { t: '自测', d: w.quiz }]; },
+    function (w) { return [
+      { t: '重读 + 画图', d: '把这章画成一张结构图：谁影响谁、顺序是什么' },
+      { t: '输出', d: w.out },
+      { t: '自测', d: w.quiz }]; },
+    function (w) { return [
+      { t: '应用', d: '给一个队友讲 5 分钟这章，讲不清的地方回去重读' },
+      { t: '读第二遍', d: w.book + '，这次只关注圈出来的生词' },
+      { t: '自测', d: w.quiz }]; },
+    function (w) { return [
+      { t: '口诀化', d: '把这章的要点写成 5 条能背下来的短句' },
+      { t: '对照自己', d: '用这章的内容看自己今天的训练，写 1 条能改的地方' },
+      { t: '自测', d: w.quiz }]; },
+    function (w) { return [
+      { t: '复习卡', d: '把这章 10 个概念做成问答卡，自问自答' },
+      { t: '输出', d: w.out },
+      { t: '自测', d: w.quiz }]; },
+    function (w) { return [
+      { t: '串起来', d: '把这章和前几周的内容连线：哪些是同一个系统' },
+      { t: '复习卡', d: '只看问答卡，答不出的标红，明天先看' },
+      { t: '自测', d: w.quiz }]; },
+    function (w) { return [
+      { t: '周测', d: '本周 15 题，限时 15 分钟，记录正确率' },
+      { t: '错题归因', d: '每道错题写一句：是没记住，还是没理解' },
+      { t: '一周复盘', d: '这周最难的一个概念，用一句话讲给外行听懂' }]; }
+  ];
+
+  function newStudyDay() {
+    return { en: [false, false, false], cscs: [false, false, false], right: 0, total: 0, out: '', feedback: '' };
+  }
   function studyDay(k) {
     k = k || todayKey();
-    if (!state.study.days[k]) state.study.days[k] = { words: 0, read: null, out: null };
+    if (!state.study.days[k]) state.study.days[k] = newStudyDay();
     var d = state.study.days[k];
-    if (!d.read) d.read = { subject: 'english', minutes: 0, key: '' };
-    if (!d.out) d.out = { subject: 'english', text: '', feedback: '' };
+    ['en', 'cscs'].forEach(function (f) {
+      if (!Array.isArray(d[f])) d[f] = [false, false, false];
+      while (d[f].length < 3) d[f].push(false);
+    });
+    if (d.out && typeof d.out === 'object') d.out = d.out.text || '';
+    if (typeof d.out !== 'string') d.out = '';
+    if (typeof d.feedback !== 'string') d.feedback = '';
+    if (typeof d.right !== 'number') d.right = 0;
+    if (typeof d.total !== 'number') d.total = 0;
     return d;
   }
   function studyDone(k) {
-    var d = studyDay(k), n = 0;
-    if (d.words > 0) n++;
-    if (d.read.minutes > 0 || d.read.key) n++;
-    if (d.out.text) n++;
-    return n;
+    var d = studyDay(k);
+    return d.en.filter(Boolean).length + d.cscs.filter(Boolean).length;
   }
-  function setStudy(path, v) {
-    var d = studyDay(todayKey()), p = path.split('.');
-    if (p.length === 1) d[p[0]] = v; else d[p[0]][p[1]] = v;
+  function dayIdx(k) {
+    return Math.max(0, Math.round((parseKey(k || todayKey()) - parseKey(PLAN_START)) / 86400000));
+  }
+  function planWeek(k) { return Math.floor(dayIdx(k) / 7); }
+  function enWeek(k) { return EN_WEEKS[planWeek(k) % EN_WEEKS.length]; }
+  function cscsWeek(k) { return CSCS_WEEKS[planWeek(k) % CSCS_WEEKS.length]; }
+  function setStudy(field, v) {
+    studyDay(todayKey())[field] = v;
     save();
     var badge = document.getElementById('st-badge');
-    if (badge) badge.textContent = '今日 ' + studyDone() + '/3';
+    if (badge) badge.textContent = studyDone() + '/6 项';
     queueSync();
   }
 
@@ -610,63 +704,66 @@
   }
 
   /* ================= 学习 ================= */
+  function planTodo(act, i, title, desc, on) {
+    return '<div class="todo' + (on ? ' done' : '') + '">' +
+      '<div class="todo-no">' + pad(i + 1) + '</div>' +
+      '<div class="todo-t"><h3>' + esc(title) + '</h3><p>' + desc + '</p></div>' +
+      '<button class="key" data-act="' + act + '" data-i="' + i + '" aria-label="完成">' +
+        (on ? '<svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : '') +
+      '</button></div>';
+  }
+
   function viewStudy() {
-    var k = todayKey(), d = studyDay(k), done = studyDone(k);
-    var s = head('四级 → 六级 → 雅思', '学习',
-      '<div class="pill" id="st-badge">今日 ' + done + '/3</div>');
+    var k = todayKey(), d = studyDay(k), n = studyDone(k);
+    var wk = planWeek(k) + 1, en = enWeek(k), cs = cscsWeek(k);
+    var role = dayIdx(k) % 7, enTasks = EN_ROLES[role](en), csTasks = CSCS_ROLES[role](cs);
+    var rate = d.total > 0 ? Math.round(d.right / d.total * 100) + '%' : '未记';
+    var s = head('第 ' + (dayIdx(k) + 1) + ' 天 · 第 ' + wk + ' 周', '学习',
+      '<div class="pill" id="st-badge">' + n + '/6 项</div>');
 
-    s += '<section class="card"><div class="card-head"><h2>今天三件事</h2><span class="hint">20 分钟能做完</span></div>' +
+    s += '<section class="card">' +
+      '<div class="card-head"><h2><i class="idx">1</i>英语 · 四级</h2><span class="hint">' + esc(en.t) + '</span></div>' +
+      enTasks.map(function (x, i) { return planTodo('encheck', i, x.t, x.d, d.en[i]); }).join('') +
+      '<p class="note">刘晓艳给你方法和词汇，真题给你分数。只听课不做题，等于没学。</p>' +
+    '</section>';
+
+    s += '<section class="card">' +
+      '<div class="card-head"><h2><i class="idx">2</i>CSCS</h2><span class="hint">' + esc(cs.t) + '</span></div>' +
+      csTasks.map(function (x, i) { return planTodo('cscscheck', i, x.t, x.d, d.cscs[i]); }).join('') +
+      '<p class="note">读一遍不算会。能用自己的话讲出来、能给队友用上，才算。</p>' +
+    '</section>';
+
+    s += '<section class="card"><div class="card-head"><h2><i class="idx">3</i>今天做题</h2><span class="hint">正确率 ' + rate + '</span></div>' +
+      '<div class="rate">' +
+        '<label><input data-study="right" type="number" inputmode="numeric" value="' + (d.right || '') + '"><i>做对</i></label>' +
+        '<span>/</span>' +
+        '<label><input data-study="total" type="number" inputmode="numeric" value="' + (d.total || '') + '"><i>总题数</i></label>' +
+      '</div></section>';
+
+    s += '<section class="card"><div class="card-head"><h2>近 7 天</h2><span class="hint">每天 6 项</span></div>' +
+      '<div class="bars">' + studyBars() + '</div></section>';
+
+    s += '<section class="card"><div class="card-head"><h2>两条线考什么</h2><span class="hint">先看地图再走路</span></div>' +
       '<div class="steps">' +
-        stepRow('单词', d.words > 0 ? d.words + ' 个' : '未做', d.words > 0) +
-        stepRow('精读', d.read.minutes > 0 ? subjectName(d.read.subject) + ' · ' + d.read.minutes + ' 分钟' : '未做', d.read.minutes > 0 || !!d.read.key) +
-        stepRow('输出', d.out.text ? '已写 ' + d.out.text.length + ' 字' : '未做', !!d.out.text) +
+        stepRow('四级听力', '248.5 分 · 新闻 / 长对话 / 篇章', wk <= 5) +
+        stepRow('四级阅读', '248.5 分 · 选词 / 匹配 / 仔细', wk >= 6 && wk <= 9) +
+        stepRow('四级写作 + 翻译', '213 分 · 各 106.5', wk >= 10) +
+        stepRow('CSCS 科学基础', '解剖 / 生物力学 / 内分泌 / 营养', wk <= 4) +
+        stepRow('CSCS 实践应用', '测试 / 技术 / 计划 / 周期', wk >= 5) +
       '</div>' +
-      '<p class="note">只看课、只背词是纯输入，考场上考的是你能不能读懂、写得出。第二、三项才是提分的地方。</p>' +
+      '<p class="note">四级 425 过线；CSCS 两科都要 70% 左右。哪个都躲不掉，就按周次一周一周往前推。</p>' +
     '</section>';
 
-    s += '<section class="card"><div class="card-head"><h2><i class="idx">1</i>单词</h2><span class="hint">今天背了多少个</span></div>' +
-      '<div class="words-row">' +
-        '<button class="ghost sq" data-act="words" data-d="-10">−10</button>' +
-        '<input id="sw-words" data-study="words" type="number" inputmode="numeric" value="' + (d.words || 0) + '">' +
-        '<button class="ghost sq" data-act="words" data-d="10">+10</button>' +
-      '</div>' +
-    '</section>';
-
-    s += '<section class="card"><div class="card-head"><h2><i class="idx">2</i>精读一段</h2><span class="hint">看不懂的句子才是重点</span></div>' +
-      '<div class="chips">' + SUBJECTS.map(function (x) {
-        return '<button class="chip' + (d.read.subject === x.id ? ' on' : '') + '" data-act="rsub" data-s="' + x.id + '">' + x.name + '</button>';
-      }).join('') + '</div>' +
-      '<label class="frow-in"><span>时长</span>' +
-        '<input data-study="read.minutes" type="number" inputmode="numeric" value="' + (d.read.minutes || '') + '"><i>分钟</i></label>' +
-      '<textarea class="ta" data-study="read.key" rows="3" placeholder="' + (d.read.subject === 'anatomy'
-        ? '今天看懂的结构 / 起止点 / 功能，用自己的话写'
-        : '抄一句今天没看懂的句子，写下你的理解') + '">' + esc(d.read.key) + '</textarea>' +
-    '</section>';
-
-    s += '<section class="card"><div class="card-head"><h2><i class="idx">3</i>输出</h2><span class="hint">这一步决定你有没有进步</span></div>' +
-      '<div class="chips">' + SUBJECTS.map(function (x) {
-        return '<button class="chip' + (d.out.subject === x.id ? ' on' : '') + '" data-act="osub" data-s="' + x.id + '">' + x.name + '</button>';
-      }).join('') + '</div>' +
-      '<textarea class="ta" data-study="out.text" rows="4" placeholder="' + (d.out.subject === 'anatomy'
-        ? '用三句话说清今天这个结构：它在哪、连着谁、干什么'
-        : '写 2 句英文：今天做的一件具体的事 + 你的感受') + '">' + esc(d.out.text) + '</textarea>' +
+    s += '<section class="card"><div class="card-head"><h2>作文 / 翻译批改</h2><span class="hint">写完贴进来</span></div>' +
+      '<textarea class="ta" data-study="out" rows="4" placeholder="把今天写的作文或翻译贴进来，先自己看一遍再交给 AI">' + esc(d.out) + '</textarea>' +
       '<div class="btns">' +
         '<button class="solid" data-act="aisend">交给 AI 批改</button>' +
         '<button class="ghost" data-act="deepseek">打开 DeepSeek</button>' +
       '</div>' +
       '<div class="aibox">' +
-        '<div class="aibox-h"><span>AI 批改结果</span><button class="linkbtn" data-act="aipaste">粘贴回答</button></div>' +
-        '<textarea class="ta" data-study="out.feedback" rows="5" placeholder="点上面「交给 AI 批改」→ 到 DeepSeek 粘贴、发送 → 复制回答 → 回来点「粘贴回答」">' + esc(d.out.feedback) + '</textarea>' +
+        '<div class="aibox-h"><span>批改结果</span><button class="linkbtn" data-act="aipaste">粘贴回答</button></div>' +
+        '<textarea class="ta" data-study="feedback" rows="4" placeholder="复制回答后回来点「粘贴回答」">' + esc(d.feedback) + '</textarea>' +
       '</div>' +
-    '</section>';
-
-    s += '<section class="card"><div class="card-head"><h2>近 7 天</h2><span class="hint">每天完成几项</span></div>' +
-      '<div class="bars">' + studyBars() + '</div></section>';
-
-    s += '<section class="card"><div class="card-head"><h2>运动解剖学 · 从哪入手</h2><span class="hint">别从第一页读</span></div>' +
-      ANATOMY_STEPS.map(function (x) {
-        return '<div class="stepitem"><div class="stept">' + x.t + '</div><div class="stepd">' + x.d + '</div></div>';
-      }).join('') +
     '</section>';
 
     return s;
@@ -681,33 +778,19 @@
     for (var i = 6; i >= 0; i--) {
       var k = shiftKey(todayKey(), -i), n = studyDone(k);
       var dt = parseKey(k);
-      out += '<div class="barcol"><div class="barcol-track"><span style="height:' + Math.round(n / 3 * 100) + '%"></span></div>' +
+      out += '<div class="barcol"><div class="barcol-track"><span style="height:' + Math.round(n / 6 * 100) + '%"></span></div>' +
         '<div class="barcol-lb">' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</div></div>';
     }
     return out;
   }
 
   function buildPrompt(d) {
-    var body = d.out.text.trim();
-    if (d.out.subject === 'anatomy') {
-      return '你是运动解剖学老师，要求严格。下面是我今天的复述，请：\n' +
-        '1) 逐条指出事实性错误（结构名称、起止点、功能）\n' +
-        '2) 补充我漏掉的关键点，不超过 3 条\n' +
-        '3) 最后用一句话指出我最该补的短板\n' +
-        '不要客套，直接给结论。\n\n我的复述：\n"""\n' + body + '\n"""';
-    }
-    if (d.out.subject === 'reading') {
-      return '你是我的阅读教练。下面是我今天读书后的输出，请：\n' +
-        '1) 指出我理解偏了或漏掉的地方\n' +
-        '2) 提 2 个能逼我想得更深的问题\n' +
-        '3) 一句话说明我该往哪个方向继续读\n' +
-        '不要客套。\n\n我的输出：\n"""\n' + body + '\n"""';
-    }
-    return '你是我的英语老师，要求严格。下面是我今天写的英文，请：\n' +
-      '1) 逐句指出语法和用词错误，给出修改\n' +
-      '2) 给一个更地道的版本\n' +
-      '3) 用一句话指出我最该改的一个毛病\n' +
-      '不要客套，直接给结论。\n\n我写的：\n"""\n' + body + '\n"""';
+    return '你是四级作文 / 翻译的阅卷老师，要求严格。下面是我今天写的英文，请：\n' +
+      '1) 按四级评分标准打分（满分 15 分），说明扣在哪\n' +
+      '2) 逐句指出语法和用词错误，给出修改\n' +
+      '3) 给一个更地道但不超纲的版本\n' +
+      '4) 用一句话指出我最该改的一个毛病\n' +
+      '不要客套，直接给结论。\n\n我写的：\n"""\n' + d.out.trim() + '\n"""';
   }
 
   function copyText(t) {
@@ -731,7 +814,7 @@
 
   function aiSend() {
     var d = studyDay(todayKey());
-    if (!d.out.text.trim()) { toast('先写下今天的输出'); return; }
+    if (!d.out.trim()) { toast('先把今天写的作文或翻译贴进来'); return; }
     shareOrCopy(buildPrompt(d));
   }
 
@@ -996,16 +1079,15 @@
     }
 
     /* 学习 */
-    if (act === 'words') {
+    if (act === 'encheck' || act === 'cscscheck') {
       var sd = studyDay(todayKey());
-      var nw = num(sd.words, 0) + (+el.dataset.d);
-      setStudy('words', nw < 0 ? 0 : nw);
-      render(); return;
+      var fld = act === 'encheck' ? 'en' : 'cscs';
+      var ii = +el.dataset.i;
+      sd[fld][ii] = !sd[fld][ii];
+      save(); queueSync(); renderKeep(); return;
     }
-    if (act === 'rsub') { setStudy('read.subject', el.dataset.s); render(); return; }
-    if (act === 'osub') { setStudy('out.subject', el.dataset.s); render(); return; }
     if (act === 'aisend') { aiSend(); return; }
-    if (act === 'aipaste') { pasteTo(function (t) { setStudy('out.feedback', t); }); return; }
+    if (act === 'aipaste') { pasteTo(function (t) { setStudy('feedback', t); }); return; }
     if (act === 'deepseek') { window.open('https://chat.deepseek.com/', '_blank'); return; }
 
     /* 备份 */
