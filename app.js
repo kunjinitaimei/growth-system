@@ -1,4 +1,4 @@
-/* 成长系统 v3 · 训练 / 饮食 / 学习 / 我的（数据存本地，自动备份到私有库） */
+/* 成长系统 v4 · 训练 / 饮食 / 学习 / 支出 / 我的（数据存本地，自动备份到私有库） */
 (function () {
   'use strict';
 
@@ -210,6 +210,7 @@
     days: {},
     study: blankStudy(),
     train: { ball: blankTrack(), lift: blankTrack(), history: [], coach: '' },
+    expenses: { budget: 500, items: [] },
     customFoods: [],
     sync: {
       repo: 'kunjinitaimei/personal-vault',
@@ -256,6 +257,18 @@
       out.train.history = Array.isArray(tr.history) ? tr.history : [];
       out.train.coach = typeof tr.coach === 'string' ? tr.coach : '';
     }
+    var ex = (s && s.expenses) || {};
+    out.expenses = { budget: num(ex.budget, 500) > 0 ? num(ex.budget, 500) : 500, items: [] };
+    out.expenses.items = (Array.isArray(ex.items) ? ex.items : []).filter(function (it) {
+      return it && /^\d{4}-\d{2}-\d{2}$/.test(it.date || '') && num(it.amount, 0) > 0;
+    }).map(function (it) {
+      return {
+        id: String(it.id || ('e' + Date.now() + Math.random())), date: it.date,
+        amount: Math.round(num(it.amount, 0) * 100) / 100,
+        desc: String(it.desc || '未命名支出').slice(0, 60),
+        category: String(it.category || '其他'), createdAt: it.createdAt || ''
+      };
+    });
     out.customFoods = (s && s.customFoods) || [];
     return out;
   }
@@ -517,13 +530,171 @@
     toast('第 ' + st.idx + ' 天，接着来');
   }
 
+  /* ================= 支出：自然语言识别与统计 ================= */
+  var EXPENSE_CATS = ['餐饮', '交通', '购物', '生活', '学习', '运动', '医疗', '娱乐', '其他'];
+  var EXPENSE_RULES = [
+    ['餐饮', /食堂|早餐|早饭|午餐|午饭|晚餐|晚饭|吃饭|餐|外卖|奶茶|咖啡|饮料|矿泉水|买水|水果|零食|麦当劳|肯德基|汉堡|面|粉|饭|水/],
+    ['交通', /打车|出租|滴滴|地铁|公交|巴士|车票|高铁|火车|机票|加油|停车|单车|共享单车|路费/],
+    ['学习', /教材|课本|书籍|买书|课程|网课|打印|文具|考试|四级|资料|笔|本子/],
+    ['运动', /篮球|球场|场地|健身|训练|球鞋|球衣|运动|康复|护膝|蛋白/],
+    ['医疗', /医院|药店|买药|看病|挂号|检查|治疗|药品|门诊/],
+    ['娱乐', /电影|游戏|会员|KTV|演出|旅游|门票|唱歌|视频/],
+    ['生活', /超市|日用品|洗衣|理发|牙膏|洗发|沐浴|纸巾|话费|电费|水费|房租/],
+    ['购物', /淘宝|京东|拼多多|衣服|裤子|鞋|购物|网购/]
+  ];
+
+  function money(n) { return (Math.round(num(n, 0) * 100) / 100).toFixed(2); }
+  function expenseCategory(text) {
+    for (var i = 0; i < EXPENSE_RULES.length; i++) {
+      if (EXPENSE_RULES[i][1].test(text)) return EXPENSE_RULES[i][0];
+    }
+    return '其他';
+  }
+  function expenseDate(text, fallback) {
+    var base = fallback || todayKey(), t = todayKey();
+    if (/大前天/.test(text)) return shiftKey(t, -3);
+    if (/前天/.test(text)) return shiftKey(t, -2);
+    if (/昨天|昨日/.test(text)) return shiftKey(t, -1);
+    if (/今天|今日/.test(text)) return t;
+    var full = text.match(/(20\d{2})[年\-\/\.](\d{1,2})[月\-\/\.](\d{1,2})[日号]?/);
+    if (full) return full[1] + '-' + pad(+full[2]) + '-' + pad(+full[3]);
+    var md = text.match(/(\d{1,2})月(\d{1,2})[日号]/);
+    if (md) return new Date().getFullYear() + '-' + pad(+md[1]) + '-' + pad(+md[2]);
+    var wd = text.match(/(上周|本周|这周|周|星期)([一二三四五六日天])/);
+    if (wd) {
+      var target = '一二三四五六日天'.indexOf(wd[2]);
+      if (target === 7) target = 6;
+      if (wd[1] === '上周') return shiftKey(weekStart(t), target - 7);
+      return shiftKey(weekStart(t), target);
+    }
+    return base;
+  }
+  function cleanExpenseDesc(text) {
+    var out = String(text || '')
+      .replace(/20\d{2}[年\-\/\.]\d{1,2}[月\-\/\.]\d{1,2}[日号]?/g, '')
+      .replace(/\d{1,2}月\d{1,2}[日号]/g, '')
+      .replace(/大前天|前天|昨天|昨日|今天|今日|上周[一二三四五六日天]|本周[一二三四五六日天]|这周[一二三四五六日天]|周[一二三四五六日天]|星期[一二三四五六日天]/g, '')
+      .replace(/\d+(?:\.\d+)?\s*(?:瓶|个|张|件|双|斤|公斤|克|g|ml)/gi, '')
+      .replace(/[，,。；;、\n\r\t]/g, ' ')
+      .replace(/早上|早晨|上午|中午|下午|晚上|昨晚|今早/g, '')
+      .replace(/^\s*(?:和|还有|然后|接着|再|又|以及)+/, '')
+      .replace(/^\s*(?:我)?(?:花了|花掉|花|买了|买|付了|付|用了|用|支出|消费)/, '')
+      .replace(/^\s*[的了啊呢]+|\s+$/g, '')
+      .trim();
+    return (out || '未命名支出').slice(0, 60);
+  }
+  function parseExpenses(text) {
+    var source = String(text || '').trim(), found = [];
+    var re = /(\d+(?:\.\d{1,2})?)\s*(人民币|块钱|元|块|rmb|瓶|个|张|次|件|双|斤|公斤|克|g|ml|公里|km|月|日|号|年|点)?/gi;
+    var m;
+    while ((m = re.exec(source))) {
+      var unit = (m[2] || '').toLowerCase();
+      var before = source.charAt(m.index - 1), after = source.charAt(re.lastIndex);
+      if (unit && ['元', '块', '块钱', '人民币', 'rmb'].indexOf(unit) < 0) continue;
+      if (!unit && (/[-\.\/]/.test(before) || /[-\.\/%％]/.test(after))) continue;
+      found.push({ start: m.index, end: re.lastIndex, amount: num(m[1], 0), lead: source.slice(found.length ? found[found.length - 1].end : 0, m.index) });
+    }
+    var currentDate = todayKey();
+    return found.filter(function (x) { return x.amount > 0; }).map(function (x, i) {
+      currentDate = expenseDate(x.lead, currentDate);
+      var descSource = x.lead;
+      if (!cleanExpenseDesc(descSource).replace(/未命名支出/, '').trim() && found.length === 1) {
+        descSource += source.slice(x.end);
+      }
+      var desc = cleanExpenseDesc(descSource);
+      return { date: currentDate, amount: Math.round(x.amount * 100) / 100, desc: desc, category: expenseCategory(desc + ' ' + x.lead) };
+    });
+  }
+  function expensesOn(k) {
+    return state.expenses.items.filter(function (it) { return it.date === k; });
+  }
+  function expensesFrom(start, days) {
+    var end = shiftKey(start, days || 7);
+    return state.expenses.items.filter(function (it) { return it.date >= start && it.date < end; });
+  }
+  function expenseSum(items) {
+    return Math.round(items.reduce(function (sum, it) { return sum + num(it.amount, 0); }, 0) * 100) / 100;
+  }
+  function expenseCategoryStats(items) {
+    var map = {};
+    items.forEach(function (it) { map[it.category] = (map[it.category] || 0) + it.amount; });
+    return Object.keys(map).map(function (k) { return { name: k, amount: Math.round(map[k] * 100) / 100 }; })
+      .sort(function (a, b) { return b.amount - a.amount; });
+  }
+  function frequentExpenses(items) {
+    var map = {};
+    items.forEach(function (it) {
+      var k = it.desc.replace(/\s/g, '').toLowerCase();
+      if (!map[k]) map[k] = { name: it.desc, count: 0, amount: 0 };
+      map[k].count++;
+      map[k].amount += it.amount;
+    });
+    return Object.keys(map).map(function (k) {
+      map[k].amount = Math.round(map[k].amount * 100) / 100;
+      return map[k];
+    }).filter(function (x) { return x.count > 1; }).sort(function (a, b) { return b.count - a.count || b.amount - a.amount; });
+  }
+  function expenseWeek(k) {
+    var start = weekStart(k || todayKey()), items = expensesFrom(start, 7);
+    return { start: start, items: items, total: expenseSum(items) };
+  }
+  function dailyAllowance() {
+    var w = expenseWeek(todayKey()), left = state.expenses.budget - w.total;
+    var days = 7 - ((parseKey(todayKey()).getDay() + 6) % 7);
+    return { days: days, amount: Math.max(0, left) / days };
+  }
+  function answerExpense(q) {
+    var question = String(q || '').trim(), w = expenseWeek(todayKey());
+    var left = Math.round((state.expenses.budget - w.total) * 100) / 100;
+    var allowance = dailyAllowance(), todayItems = expensesOn(todayKey());
+    if (/还能花|剩余|剩下|预算|每天.*花|每日.*花/.test(question)) {
+      return left >= 0
+        ? '本周还可花 ¥' + money(left) + '。含今天还剩 ' + allowance.days + ' 天，按剩余天数平均每天可用 ¥' + money(allowance.amount) + '。'
+        : '本周已超支 ¥' + money(Math.abs(left)) + '。当前剩余预算为 ¥0.00，已入账支出不会被限制。';
+    }
+    if (/今天|今日/.test(question) && /多少|花了|支出|消费/.test(question)) {
+      return '今天共花 ¥' + money(expenseSum(todayItems)) + '，记了 ' + todayItems.length + ' 笔。';
+    }
+    if (/昨天|昨日/.test(question) && /多少|花了|支出|消费/.test(question)) {
+      var yk = shiftKey(todayKey(), -1), yi = expensesOn(yk);
+      return '昨天共花 ¥' + money(expenseSum(yi)) + '，记了 ' + yi.length + ' 笔。';
+    }
+    if (/哪天|哪一天|最高.*天|单日/.test(question)) {
+      var dayTotals = [];
+      for (var i = 0; i < 7; i++) {
+        var dk = shiftKey(w.start, i), val = expenseSum(expensesOn(dk));
+        dayTotals.push({ date: dk, amount: val });
+      }
+      dayTotals.sort(function (a, b) { return b.amount - a.amount; });
+      return dayTotals[0].amount > 0
+        ? '本周单日支出最高是 ' + dateLabel(dayTotals[0].date) + '，共 ¥' + money(dayTotals[0].amount) + '。'
+        : '本周还没有支出记录。';
+    }
+    if (/哪类|类别|分类|类目|最大类/.test(question)) {
+      var cats = expenseCategoryStats(w.items);
+      return cats.length ? '本周支出最多的是「' + cats[0].name + '」，共 ¥' + money(cats[0].amount) + '，占本周支出 ' + Math.round(cats[0].amount / w.total * 100) + '%。' : '本周还没有支出记录。';
+    }
+    if (/常买|频繁|重复/.test(question)) {
+      var freq = frequentExpenses(expensesFrom(shiftKey(todayKey(), -29), 30));
+      return freq.length ? '近 30 天最常买的是「' + freq[0].name + '」，共 ' + freq[0].count + ' 笔，合计 ¥' + money(freq[0].amount) + '。' : '近 30 天还没有重复购买 2 次以上的项目。';
+    }
+    if (/超支|超出/.test(question)) {
+      return left < 0 ? '本周已超支 ¥' + money(Math.abs(left)) + '。' : '本周尚未超支，预算还剩 ¥' + money(left) + '。';
+    }
+    if (/这周|本周|一周|周.*多少|周.*花/.test(question)) {
+      return '本周共花 ¥' + money(w.total) + '，记了 ' + w.items.length + ' 笔，预算剩余 ¥' + money(Math.max(0, left)) + '。';
+    }
+    return '本周已花 ¥' + money(w.total) + '，今天已花 ¥' + money(expenseSum(todayItems)) + '。\n可以继续问「这周还能花多少」「哪类花得最多」或「近 30 天常买什么」。';
+  }
+
   /* ---------------- 视图状态 ---------------- */
   var tab = 'train';
   var logDate = todayKey();
   var foodQ = '', foodCat = '全部';
+  var expenseText = '', expenseQuestion = '', expenseAnswer = '';
   var SUB_OF = { log: 'today', foods: 'today' };
   var mTab = /[?&]tab=(\w+)/.exec(location.search);
-  if (mTab && ['train', 'today', 'study', 'log', 'foods', 'me'].indexOf(mTab[1]) > -1) tab = mTab[1];
+  if (mTab && ['train', 'today', 'study', 'expense', 'log', 'foods', 'me'].indexOf(mTab[1]) > -1) tab = mTab[1];
 
   /* ---------------- 渲染 ---------------- */
   var view = document.getElementById('view');
@@ -532,6 +703,7 @@
     if (tab === 'train') view.innerHTML = viewTrain();
     else if (tab === 'today') view.innerHTML = viewToday();
     else if (tab === 'study') view.innerHTML = viewStudy();
+    else if (tab === 'expense') view.innerHTML = viewExpense();
     else if (tab === 'log') view.innerHTML = viewLog();
     else if (tab === 'foods') view.innerHTML = viewFoods();
     else view.innerHTML = viewMe();
@@ -843,6 +1015,122 @@
     return s;
   }
 
+  /* ================= 支出 ================= */
+  function viewExpense() {
+    var w = expenseWeek(todayKey()), budget = state.expenses.budget;
+    var left = Math.round((budget - w.total) * 100) / 100, over = left < 0;
+    var usedPct = budget ? Math.round(w.total / budget * 100) : 0;
+    var allowance = dailyAllowance(), todayTotal = expenseSum(expensesOn(todayKey()));
+    var end = shiftKey(w.start, 6);
+    var s = head(w.start.slice(5).replace('-', '/') + '—' + end.slice(5).replace('-', '/') + ' · 周一至周日', '支出',
+      '<span class="status">周预算 ¥' + money(budget) + '</span>');
+
+    s += '<section class="treadout ex-budget">' +
+      '<div class="tr-top"><span>WEEKLY BALANCE</span><span>' + usedPct + '% 已用</span></div>' +
+      '<div class="ex-left' + (over ? ' down' : '') + '"><small>¥</small>' + money(Math.abs(left)) + '</div>' +
+      '<div class="ex-caption">' + (over ? '本周已超支' : '本周剩余') + '</div>' +
+      '<div class="track ex-track"><span class="' + (over ? 'over' : '') + '" style="width:' + Math.min(100, usedPct) + '%"></span></div>' +
+      '<div class="ex-scale"><span>已花 ¥' + money(w.total) + '</span><span>预算 ¥' + money(budget) + '</span></div>' +
+    '</section>';
+
+    s += '<div class="mods ex-mods">' +
+      '<div class="mod"><div class="mod-k">今天</div><div class="mod-v">¥' + money(todayTotal) + '</div><div class="mod-f">' + expensesOn(todayKey()).length + ' 笔</div></div>' +
+      '<div class="mod' + (!over ? ' on' : '') + '"><div class="mod-k">每日可用</div><div class="mod-v">¥' + money(allowance.amount) + '</div><div class="mod-f">含今天剩 ' + allowance.days + ' 天</div></div>' +
+      '<div class="mod' + (over ? ' over' : '') + '"><div class="mod-k">本周笔数</div><div class="mod-v">' + w.items.length + '<i>笔</i></div><div class="mod-f">' + (over ? '超出 ¥' + money(Math.abs(left)) : '剩余 ¥' + money(left)) + '</div></div>' +
+    '</div>';
+
+    if (over) s += '<div class="brief ex-warning"><div class="brief-k">预算提醒</div>本周已超支 ¥' + money(Math.abs(left)) + '。支出仍可正常记录，统计会保留真实结果。</div>';
+
+    s += '<section class="card"><div class="card-head"><h2>直接说支出</h2><span class="hint">识别确认后才入账</span></div>' +
+      '<textarea class="ta" id="ex-input" rows="3" placeholder="如：中午食堂15，买水3块，昨天打车18">' + esc(expenseText) + '</textarea>' +
+      '<button class="solid big" data-act="exparse">识别支出</button>' +
+      '<p class="note">可一次说多笔，也能带今天、昨天、前天或具体日期。金额、描述、日期和类别都能在确认前修改。</p>' +
+    '</section>';
+
+    s += '<section class="card"><div class="card-head"><h2>本周每日</h2><span class="hint">合计 ¥' + money(w.total) + '</span></div>' + expenseWeekBars(w.start) + '</section>';
+
+    var cats = expenseCategoryStats(w.items), maxCat = cats.length ? cats[0].amount : 0;
+    s += '<section class="card"><div class="card-head"><h2>本周类别</h2><span class="hint">' + cats.length + ' 类</span></div>' +
+      (cats.length ? cats.map(function (c) {
+        return '<div class="macro"><div class="macro-top"><span class="macro-name">' + esc(c.name) + '</span>' +
+          '<span class="macro-val"><b>¥' + money(c.amount) + '</b><i>' + Math.round(c.amount / w.total * 100) + '%</i></span></div>' +
+          '<div class="track"><span style="width:' + (maxCat ? c.amount / maxCat * 100 : 0) + '%;background:var(--volt)"></span></div></div>';
+      }).join('') : '<div class="empty">本周还没有支出。说一笔，类别会自动归入这里。</div>') +
+    '</section>';
+
+    var freq = frequentExpenses(expensesFrom(shiftKey(todayKey(), -29), 30));
+    s += '<section class="card"><div class="card-head"><h2>近 30 天常买</h2><span class="hint">2 笔及以上</span></div>' +
+      (freq.length ? freq.slice(0, 6).map(function (f, i) {
+        return '<div class="steprow"><i class="idx">' + (i + 1) + '</i><span class="stepn">' + esc(f.name) + '</span>' +
+          '<span class="stepv">' + f.count + ' 笔 · ¥' + money(f.amount) + '</span></div>';
+      }).join('') : '<div class="empty">同一个项目记满 2 笔后，会在这里显示次数和合计。</div>') +
+    '</section>';
+
+    s += expenseReviewCard(w);
+
+    s += '<section class="card"><div class="card-head"><h2>问支出助手</h2><span class="hint">按真实记录回答</span></div>' +
+      '<div class="ex-ask"><input id="ex-question" type="text" value="' + esc(expenseQuestion) + '" placeholder="如：这周还能花多少">' +
+      '<button class="solid" data-act="exask">提问</button></div>' +
+      '<div class="chips">' + ['这周还能花多少', '今天花了多少', '哪类花得最多', '近30天常买什么'].map(function (q) {
+        return '<button class="chip" data-act="exq" data-q="' + esc(q) + '">' + q + '</button>';
+      }).join('') + '</div>' +
+      (expenseAnswer ? '<div class="brief ex-answer">' + esc(expenseAnswer) + '</div>' : '') +
+    '</section>';
+
+    var sorted = state.expenses.items.slice().sort(function (a, b) {
+      return a.date === b.date ? String(b.createdAt).localeCompare(String(a.createdAt)) : (a.date < b.date ? 1 : -1);
+    });
+    s += '<section class="card"><div class="card-head"><h2>按日明细</h2><span class="hint">共 ' + sorted.length + ' 笔 · 点一笔修改</span></div>';
+    if (!sorted.length) s += '<div class="empty">还没有支出记录。</div>';
+    var lastDate = '', dayItems = [];
+    function flushDay() {
+      if (!dayItems.length) return '';
+      var html = '<div class="ex-day"><div class="ex-day-head"><span>' + dateLabel(lastDate) + '</span><b>¥' + money(expenseSum(dayItems)) + '</b></div>';
+      html += dayItems.map(function (it) {
+        return '<button class="ex-item" data-act="expedit" data-id="' + esc(it.id) + '">' +
+          '<span class="ex-item-main"><b>' + esc(it.desc) + '</b><small>' + esc(it.category) + '</small></span>' +
+          '<span class="ex-item-num">¥' + money(it.amount) + '</span><span class="ex-item-go">›</span></button>';
+      }).join('') + '</div>';
+      dayItems = [];
+      return html;
+    }
+    sorted.forEach(function (it) {
+      if (it.date !== lastDate) { s += flushDay(); lastDate = it.date; }
+      dayItems.push(it);
+    });
+    s += flushDay() + '</section>';
+    return s;
+  }
+
+  function expenseWeekBars(start) {
+    var values = [];
+    for (var i = 0; i < 7; i++) values.push(expenseSum(expensesOn(shiftKey(start, i))));
+    var max = Math.max.apply(Math, values.concat([1]));
+    return '<div class="ex-bars">' + values.map(function (v, i) {
+      var k = shiftKey(start, i), isToday = k === todayKey();
+      return '<div class="ex-barcol' + (isToday ? ' now' : '') + '"><span class="ex-bar-val">' + (v ? money(v) : '') + '</span>' +
+        '<div class="ex-bar-track"><span style="height:' + (v / max * 100) + '%"></span></div>' +
+        '<span class="ex-bar-day">' + DAY_CN[(i + 1) % 7] + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function expenseReviewCard(w) {
+    var cats = expenseCategoryStats(w.items), last = expenseWeek(shiftKey(todayKey(), -7));
+    var diff = Math.round((w.total - last.total) * 100) / 100;
+    var largest = w.items.slice().sort(function (a, b) { return b.amount - a.amount; })[0];
+    var freq = frequentExpenses(w.items)[0];
+    var elapsed = ((parseKey(todayKey()).getDay() + 6) % 7) + 1;
+    return '<section class="card"><div class="card-head"><h2>本周事实复盘</h2><span class="hint">不加评价</span></div>' +
+      '<div class="ex-review">' +
+        '<div><span>总支出</span><b>¥' + money(w.total) + '</b></div>' +
+        '<div><span>截至今天日均</span><b>¥' + money(w.total / elapsed) + '</b></div>' +
+        '<div><span>最大类别</span><b>' + (cats.length ? esc(cats[0].name) + ' · ¥' + money(cats[0].amount) : '暂无') + '</b></div>' +
+        '<div><span>最高单笔</span><b>' + (largest ? esc(largest.desc) + ' · ¥' + money(largest.amount) : '暂无') + '</b></div>' +
+        '<div><span>本周重复购买</span><b>' + (freq ? esc(freq.name) + ' · ' + freq.count + ' 笔' : '暂无') + '</b></div>' +
+        '<div><span>较上周</span><b class="' + (diff > 0 ? 'down' : 'up') + '">' + (diff > 0 ? '+' : '') + '¥' + money(diff) + '</b></div>' +
+      '</div><p class="note">上周总支出 ¥' + money(last.total) + '，本周记录 ' + w.items.length + ' 笔，上周记录 ' + last.items.length + ' 笔。</p></section>';
+  }
+
   /* ================= 学习 ================= */
   function planTodo(act, i, title, desc, on) {
     return '<div class="todo' + (on ? ' done' : '') + '">' +
@@ -1024,7 +1312,7 @@
       '<p class="note">没有网络或不想用令牌时，导出 JSON 存网盘，换设备后再导入。</p>' +
     '</section>';
 
-    s += '<div class="foot">成长系统 · 训练 / 饮食 / 学习<br>数据只在这台手机和你的私有仓库里</div>';
+    s += '<div class="foot">成长系统 · 训练 / 饮食 / 学习 / 支出<br>数据只在这台手机和你的私有仓库里</div>';
     return s;
   }
 
@@ -1121,6 +1409,63 @@
       '<button class="solid big" data-act="saveweight">保存</button>');
     var w = document.getElementById('wt');
     if (w) { w.focus(); w.addEventListener('input', function () { pendingWeight = num(this.value, 0); }); }
+  }
+
+  /* ---------------- 支出确认 / 编辑弹层 ---------------- */
+  var pendingExpenses = [], editingExpenseId = null;
+  function categoryOptions(selected) {
+    return EXPENSE_CATS.map(function (c) {
+      return '<option value="' + c + '"' + (c === selected ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+  }
+  function drawExpenseReview() {
+    var editing = !!editingExpenseId;
+    openSheet('<div class="sh-grab"></div>' +
+      '<div class="sh-head"><div><div class="sh-name">' + (editing ? '编辑支出' : '确认 ' + pendingExpenses.length + ' 笔支出') + '</div>' +
+        '<div class="sh-sub">' + (editing ? '修改金额、描述、日期或类别' : '检查识别结果，确认后才会入账') + '</div></div>' +
+        '<button class="sh-close" data-act="closesheet" aria-label="关闭">×</button></div>' +
+      '<div class="ex-drafts">' + pendingExpenses.map(function (it, i) {
+        return '<div class="ex-draft" data-ex-row="' + i + '">' +
+          '<div class="ex-draft-top"><input class="ex-desc" data-ex-f="desc" type="text" maxlength="60" value="' + esc(it.desc) + '" aria-label="支出描述">' +
+            '<label class="ex-amount"><span>¥</span><input data-ex-f="amount" type="number" min="0.01" step="0.01" inputmode="decimal" value="' + money(it.amount) + '" aria-label="金额"></label></div>' +
+          '<div class="ex-draft-bottom"><input data-ex-f="date" type="date" value="' + it.date + '" aria-label="日期">' +
+            '<select data-ex-f="category" aria-label="类别">' + categoryOptions(it.category) + '</select>' +
+            (editing ? '' : '<button class="ghost small" data-act="exremove" data-i="' + i + '">移除</button>') + '</div>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div class="btns">' + (editing
+        ? '<button class="ghost" data-act="expdel">删除</button><button class="solid" data-act="exsaveedit">保存修改</button>'
+        : '<button class="ghost" data-act="closesheet">返回修改</button><button class="solid" data-act="exconfirm">确认入账</button>') +
+      '</div>');
+  }
+  function syncExpenseDrafts() {
+    var rows = sheet.querySelectorAll('[data-ex-row]');
+    rows.forEach(function (row, i) {
+      if (!pendingExpenses[i]) return;
+      pendingExpenses[i].desc = row.querySelector('[data-ex-f="desc"]').value.trim();
+      pendingExpenses[i].amount = num(row.querySelector('[data-ex-f="amount"]').value, 0);
+      pendingExpenses[i].date = row.querySelector('[data-ex-f="date"]').value;
+      pendingExpenses[i].category = row.querySelector('[data-ex-f="category"]').value;
+    });
+  }
+  function validExpenseDrafts() {
+    syncExpenseDrafts();
+    if (!pendingExpenses.length) { toast('没有需要入账的支出'); return false; }
+    for (var i = 0; i < pendingExpenses.length; i++) {
+      var it = pendingExpenses[i];
+      if (!it.desc) { toast('第 ' + (i + 1) + ' 笔还缺描述'); return false; }
+      if (!(it.amount > 0)) { toast('第 ' + (i + 1) + ' 笔金额要大于 0'); return false; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(it.date)) { toast('第 ' + (i + 1) + ' 笔日期不对'); return false; }
+      it.amount = Math.round(it.amount * 100) / 100;
+    }
+    return true;
+  }
+  function openExpenseEditor(id) {
+    var it = state.expenses.items.filter(function (x) { return x.id === id; })[0];
+    if (!it) { toast('这笔支出不存在'); return; }
+    editingExpenseId = id;
+    pendingExpenses = [clone(it)];
+    drawExpenseReview();
   }
 
   /* ---------------- 事件 ---------------- */
@@ -1240,6 +1585,63 @@
     if (act === 'aipaste') { pasteTo(function (t) { setStudy('feedback', t); }); return; }
     if (act === 'deepseek') { window.open('https://chat.deepseek.com/', '_blank'); return; }
 
+    /* 支出 */
+    if (act === 'exparse') {
+      var exInput = document.getElementById('ex-input');
+      expenseText = exInput ? exInput.value.trim() : expenseText.trim();
+      if (!expenseText) { toast('先说说花了什么'); return; }
+      var parsed = parseExpenses(expenseText);
+      if (!parsed.length) { toast('没有识别到金额，请补充数字'); return; }
+      pendingExpenses = parsed;
+      editingExpenseId = null;
+      drawExpenseReview();
+      return;
+    }
+    if (act === 'exremove') {
+      syncExpenseDrafts();
+      pendingExpenses.splice(+el.dataset.i, 1);
+      if (!pendingExpenses.length) closeSheet(); else drawExpenseReview();
+      return;
+    }
+    if (act === 'exconfirm') {
+      if (!validExpenseDrafts()) return;
+      var now = new Date().toISOString();
+      var additions = pendingExpenses.map(function (it, i) {
+        return { id: 'e' + Date.now().toString(36) + i + Math.random().toString(36).slice(2, 6),
+          date: it.date, amount: it.amount, desc: it.desc, category: it.category, createdAt: now };
+      });
+      state.expenses.items = state.expenses.items.concat(additions);
+      expenseText = '';
+      save(); closeSheet(); render(); queueSync();
+      toast('已入账 ' + additions.length + ' 笔'); return;
+    }
+    if (act === 'expedit') { openExpenseEditor(el.dataset.id); return; }
+    if (act === 'exsaveedit') {
+      if (!validExpenseDrafts()) return;
+      var editIndex = -1;
+      state.expenses.items.forEach(function (it, i) { if (it.id === editingExpenseId) editIndex = i; });
+      if (editIndex < 0) { toast('这笔支出不存在'); return; }
+      state.expenses.items[editIndex] = Object.assign({}, state.expenses.items[editIndex], pendingExpenses[0]);
+      save(); closeSheet(); renderKeep(); queueSync(); toast('已保存修改'); return;
+    }
+    if (act === 'expdel') {
+      if (!confirm('删除这笔支出？')) return;
+      state.expenses.items = state.expenses.items.filter(function (it) { return it.id !== editingExpenseId; });
+      save(); closeSheet(); renderKeep(); queueSync(); toast('已删除支出'); return;
+    }
+    if (act === 'exask') {
+      var qEl = document.getElementById('ex-question');
+      expenseQuestion = qEl ? qEl.value.trim() : expenseQuestion.trim();
+      if (!expenseQuestion) { toast('先输入一个问题'); return; }
+      expenseAnswer = answerExpense(expenseQuestion);
+      renderKeep(); return;
+    }
+    if (act === 'exq') {
+      expenseQuestion = el.dataset.q;
+      expenseAnswer = answerExpense(expenseQuestion);
+      renderKeep(); return;
+    }
+
     /* 备份 */
     if (act === 'export') { exportData(); return; }
     if (act === 'import') { importData(); return; }
@@ -1264,6 +1666,8 @@
   });
 
   document.addEventListener('input', function (e) {
+    if (e.target.id === 'ex-input') { expenseText = e.target.value; return; }
+    if (e.target.id === 'ex-question') { expenseQuestion = e.target.value; return; }
     if (e.target.id === 'foodQ') {
       foodQ = e.target.value;
       render();
@@ -1351,7 +1755,8 @@
       updatedAt: new Date().toISOString(),
       day: state.days[k] || null,
       study: (state.study.days && state.study.days[k]) || null,
-      train: (state.train.days && state.train.days[k]) || null
+      train: (state.train.days && state.train.days[k]) || null,
+      expenses: state.expenses.items
     }, null, 1);
 
     return getFile(path).then(function (info) {
@@ -1403,8 +1808,14 @@
             var obj = JSON.parse(b64dec(it.content));
             if (!obj || !obj.date) return;
             if (obj.day && !state.days[obj.date]) { state.days[obj.date] = obj.day; n++; }
-            if (obj.study && !state.study.days[obj.date]) state.study.days[obj.date] = obj.study;
-            if (obj.train && !state.train.days[obj.date]) state.train.days[obj.date] = obj.train;
+            if (obj.study && state.study.days && !state.study.days[obj.date]) state.study.days[obj.date] = obj.study;
+            if (obj.train && state.train.days && !state.train.days[obj.date]) state.train.days[obj.date] = obj.train;
+            if (Array.isArray(obj.expenses)) {
+              var expenseIds = state.expenses.items.map(function (x) { return x.id; });
+              obj.expenses.forEach(function (x) {
+                if (x && x.id && expenseIds.indexOf(x.id) < 0) { state.expenses.items.push(x); expenseIds.push(x.id); }
+              });
+            }
           } catch (e) { }
         });
         save(); render();
