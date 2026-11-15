@@ -292,6 +292,86 @@ svg { display: block; }
   box-shadow: 0 1px 2px rgba(50, 44, 30, .2);
 }
 
+/* ---------------- 备菜 · 执行条 ---------------- */
+.prep { display: flex; flex-direction: column; gap: 11px; }
+.prep-line {
+  font-size: 12.5px; color: var(--ink-2); letter-spacing: -.01em;
+}
+.prep-line b { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.prep-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pkey {
+  height: 32px; border-radius: var(--r-sm);
+  background: var(--key); color: var(--ink-2);
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  box-shadow: 0 2px 0 #B6AF9D, inset 0 1px 0 #fff;
+  transition: transform .06s ease, box-shadow .06s ease;
+}
+.pkey.on {
+  background: var(--key-on); color: #24260A;
+  box-shadow: 0 2px 0 var(--volt-dark), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.pkey:active { transform: translateY(2px); box-shadow: 0 0 0 transparent; }
+.prep-snack {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 10px;
+  background: #EFE7CF; border: 1px dashed var(--rule);
+  border-radius: var(--r-sm);
+}
+.prep-snack span { display: block; font-size: 8px; letter-spacing: .16em; color: var(--dim); margin-bottom: 4px; }
+.prep-snack b { font-size: 11.5px; font-weight: 700; letter-spacing: -.01em; }
+.prep-snack .ghost { flex: 0 0 auto; height: 28px; padding: 0 10px; font-size: 9.5px; }
+.prep-note {
+  font-size: 10px; line-height: 1.65; color: var(--dim);
+  border-left: 2px solid var(--rule); padding-left: 8px;
+}
+.prep-note > span {
+  display: block; font-size: 8.5px; letter-spacing: .16em;
+  color: var(--volt-ink); font-weight: 700; margin-bottom: 3px;
+}
+.prep-note b { color: var(--ink); font-family: var(--mono); }
+.prep-more {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 28px; padding: 0 2px; border-top: 1px solid var(--rule-2);
+  font-size: 9.5px; letter-spacing: .06em; color: var(--dim);
+}
+.prep-more i { font-style: normal; font-family: var(--mono); color: var(--ink-2); }
+.ptable { border-top: 1px solid var(--rule-2); }
+.prow {
+  display: grid; grid-template-columns: 34px 1fr 1fr;
+  gap: 6px; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--rule-2);
+  font-size: 10px; color: var(--ink-2);
+}
+.prow .pd { font-size: 8.5px; letter-spacing: .1em; color: var(--dim); font-weight: 700; }
+.prow .pl { font-weight: 700; }
+.prow .pn { color: var(--dim); text-align: right; }
+.prow.on { background: var(--volt-soft); }
+.prow.on .pd { color: var(--volt-ink); }
+.pshop-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 0 6px;
+  font-size: 8.5px; letter-spacing: .16em; color: var(--dim); font-weight: 700;
+}
+.pshop-head i { font-style: normal; font-size: 8px; letter-spacing: .04em; font-weight: 400; }
+.pshop { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sitem {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 26px; padding: 0 8px;
+  background: var(--panel-2); border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 9.5px; color: var(--ink-2);
+}
+.sitem i { font-style: normal; font-size: 8.5px; color: var(--dim); font-family: var(--mono); }
+.sitem.on {
+  background: var(--volt-soft); border-color: var(--volt-2);
+  color: var(--volt-ink); text-decoration: line-through;
+}
+.prep-alert {
+  margin-top: 9px; padding: 7px 9px;
+  background: #EFDCD3; color: var(--rust);
+  font-size: 9px; line-height: 1.5; border-radius: 3px;
+}
+
 /* ---------------- 餐次 ---------------- */
 .meal-head { display: flex; align-items: center; gap: 9px; }
 .micon {

@@ -211,6 +211,7 @@
     study: blankStudy(),
     train: { ball: blankTrack(), lift: blankTrack(), history: [], coach: '' },
     expenses: { budget: 500, items: [] },
+    prep: { week: '', shop: [], days: {} },
     customFoods: [],
     sync: {
       repo: 'kunjinitaimei/personal-vault',
@@ -269,6 +270,11 @@
         category: String(it.category || '其他'), createdAt: it.createdAt || ''
       };
     });
+    var pr = (s && s.prep) || {};
+    out.prep = { week: '', shop: [], days: {} };
+    out.prep.week = typeof pr.week === 'string' ? pr.week : '';
+    out.prep.shop = (Array.isArray(pr.shop) ? pr.shop : []).map(function (x) { return !!x; });
+    out.prep.days = (pr.days && typeof pr.days === 'object') ? pr.days : {};
     out.customFoods = (s && s.customFoods) || [];
     return out;
   }
@@ -362,6 +368,82 @@
   }
   function isAvoid(name) {
     return (state.profile.avoid || []).some(function (a) { return a && name.indexOf(a) > -1; });
+  }
+
+  /* ---------------- 备菜计划：一锅出两份 ---------------- */
+  var PREP_PORTION = {
+    rice: { n: '米饭（熟）', g: 250 },
+    potato: { n: '土豆（蒸）', g: 400 },
+    sweet: { n: '红薯（蒸）', g: 350 },
+    purple: { n: '紫薯（蒸）', g: 350 },
+    chicken: { n: '鸡胸肉（生）', g: 180 },
+    fish: { n: '巴沙鱼', g: 200 },
+    beef: { n: '牛肉（瘦）', g: 150 },
+    veg: { n: '西兰花', g: 200 },
+    banana: { n: '香蕉', g: 120 },
+    bread: { n: '白面包', g: 70 }
+  };
+  /* 周一 → 周日：午餐主食轮换，晚餐「蛋白 + 主食」轮换 */
+  var PREP_WEEK = [
+    { l: 'rice', d: ['chicken', 'potato'] },
+    { l: 'sweet', d: ['fish', 'rice'] },
+    { l: 'purple', d: ['chicken', 'rice'] },
+    { l: 'rice', d: ['beef', 'potato'] },
+    { l: 'sweet', d: ['fish', 'rice'] },
+    { l: 'potato', d: ['chicken', 'purple'] },
+    { l: 'rice', d: ['beef', 'sweet'] }
+  ];
+  var PREP_SHOP = [
+    ['鸡胸肉', '1.5 kg'], ['巴沙鱼', '400 g'], ['瘦牛肉', '300 g'],
+    ['鸡蛋', '18 个'], ['酸奶', '1.75 kg'], ['牛奶', '1.75 L'],
+    ['燕麦', '500 g'], ['大米', '1 kg'], ['薯类', '3 kg'],
+    ['蔬菜', '3 kg'], ['香蕉', '8 根'], ['面包', '500 g'], ['坚果', '150 g']
+  ];
+  var prepOpen = false;
+
+  function foodByName(n) {
+    var f = allFoods().filter(function (x) { return x.name === n; })[0];
+    return f || { name: n, kcal: 0, p: 0, c: 0, f: 0 };
+  }
+  function prepItem(key) {
+    var p = PREP_PORTION[key], f = foodByName(p.n), s = p.g / 100;
+    return {
+      name: p.n, g: p.g,
+      kcal: r1(f.kcal * s), p: r1(f.p * s), c: r1(f.c * s), f: r1(f.f * s)
+    };
+  }
+  function prepSum(list) {
+    var t = { kcal: 0, p: 0, c: 0, f: 0 };
+    list.forEach(function (x) {
+      t.kcal += x.kcal; t.p += x.p; t.c += x.c; t.f += x.f;
+    });
+    return { kcal: r0(t.kcal), p: r0(t.p), c: r0(t.c), f: r0(t.f) };
+  }
+  function prepPlan(k) { return PREP_WEEK[(parseKey(k || todayKey()).getDay() + 6) % 7]; }
+  function ensurePrep() {
+    if (!state.prep) state.prep = { week: '', shop: [], days: {} };
+    var w = weekStart(todayKey()), changed = false;
+    if (state.prep.week !== w) {
+      state.prep.week = w;
+      state.prep.shop = PREP_SHOP.map(function () { return false; });
+      changed = true;
+    }
+    if (state.prep.shop.length !== PREP_SHOP.length) {
+      var arr = state.prep.shop.slice(0, PREP_SHOP.length);
+      while (arr.length < PREP_SHOP.length) arr.push(false);
+      state.prep.shop = arr; changed = true;
+    }
+    if (changed) save();
+  }
+  function prepDay(k) {
+    ensurePrep();
+    k = k || todayKey();
+    if (!state.prep.days[k]) {
+      state.prep.days[k] = { made: false, packed: false, carried: false, logged: false };
+    }
+    var d = state.prep.days[k];
+    d.logged = !!d.logged;
+    return d;
   }
 
   /* ---------------- 训练数据：双轨游标 ---------------- */
@@ -870,6 +952,8 @@
       '</div>' +
     '</section>';
 
+    s += prepCard(k);
+
     s += '<section class="card">' +
       '<div class="card-head"><h2>三大营养素</h2><span class="hint">还差 ' + Math.max(0, r0(tg.p - t.p)) + 'g 蛋白</span></div>' +
       bar('蛋白质', t.p, tg.p, 'var(--volt)') +
@@ -902,6 +986,75 @@
 
     s += '<button class="fab-add" data-act="quickadd">＋ 记录吃了什么</button>';
     return s;
+  }
+
+  function prepCard(k) {
+    var plan = prepPlan(k), st = prepDay(k);
+    var idx = (parseKey(k).getDay() + 6) % 7;
+    var next = PREP_WEEK[(idx + 1) % 7];
+    var lunch = [prepItem('chicken'), prepItem(plan.l), prepItem('veg')];
+    var din = [prepItem(plan.d[0]), prepItem(plan.d[1]), prepItem('veg')];
+    var tomorrow = [prepItem('chicken'), prepItem(next.l), prepItem('veg')];
+    var lt = prepSum(lunch), dt = prepSum(din);
+    var s = '<section class="card prep">' +
+      '<div class="card-head"><h2>今日午餐</h2>' +
+        '<span class="hint">' + lt.kcal + ' kcal</span></div>' +
+      '<div class="prep-line">' + lunch.map(function (x) {
+        return x.name.replace(/（.*?）/g, '') + ' <b>' + x.g + '</b>g';
+      }).join(' ') + '</div>' +
+      '<div class="prep-acts">' +
+        '<button class="pkey' + (st.made ? ' on' : '') + '" data-act="prep" data-f="made">做好</button>' +
+        '<button class="pkey' + (st.packed ? ' on' : '') + '" data-act="prep" data-f="packed">装盒</button>' +
+        '<button class="pkey' + (st.carried ? ' on' : '') + '" data-act="prep" data-f="carried">带走</button>' +
+      '</div>';
+
+    if (day(k).type === 'training') {
+      s += '<div class="prep-snack">' +
+        '<div><span>11:55 运动前</span><b>香蕉 1 根 ＋ 面包 2 片</b></div>' +
+        '<button class="ghost" data-act="prepsnack">记入加餐</button>' +
+      '</div>';
+    }
+
+    s += '<div class="prep-note">' +
+      '<span>今晚一锅出两份</span>' +
+      '晚餐 · ' + din.map(function (x) { return x.name.replace(/（.*?）/g, ''); }).join(' ＋ ') + '　<b>' + dt.kcal + '</b> kcal<br>' +
+      '明午 · ' + tomorrow.map(function (x) { return x.name.replace(/（.*?）/g, ''); }).join(' ＋ ') +
+    '</div>';
+
+    s += '<button class="solid full' + (st.logged ? ' done' : '') + '" data-act="preplog"' + (st.logged ? ' disabled' : '') + '>' +
+      (st.logged ? '已记入午餐 ' + lt.kcal + ' kcal' : '记入午餐') + '</button>';
+
+    s += '<button class="prep-more" data-act="preptoggle">本周备菜与采购 <i>' +
+      state.prep.shop.filter(Boolean).length + ' / ' + PREP_SHOP.length + '</i></button>';
+
+    if (prepOpen) s += prepTable(idx) + prepShop();
+
+    return s + '</section>';
+  }
+
+  function prepTable(idx) {
+    var out = '<div class="ptable">';
+    PREP_WEEK.forEach(function (row, i) {
+      var l = PREP_PORTION[row.l].n.replace(/（.*?）/g, '');
+      var d = row.d.map(function (x) { return PREP_PORTION[x].n.replace(/（.*?）/g, ''); }).join('＋');
+      out += '<div class="prow' + (i === idx ? ' on' : '') + '">' +
+        '<span class="pd">周' + DAY_CN[(i + 1) % 7] + '</span>' +
+        '<span class="pl">' + l + '</span>' +
+        '<span class="pn">' + d + '</span>' +
+      '</div>';
+    });
+    return out + '</div>';
+  }
+
+  function prepShop() {
+    var out = '<div class="pshop-head"><span>本周采购</span><i>按周重置</i></div>' +
+      '<div class="pshop">';
+    PREP_SHOP.forEach(function (x, i) {
+      out += '<button class="sitem' + (state.prep.shop[i] ? ' on' : '') + '" data-act="shop" data-i="' + i + '">' +
+        '<span>' + x[0] + '</span><i>' + x[1] + '</i></button>';
+    });
+    out += '</div><div class="prep-alert">断电超过 4 小时，熟食直接扔；午餐上下各放一个冰袋。</div>';
+    return out;
   }
 
   function mealRows(k) {
@@ -1507,6 +1660,36 @@
       var dd = +el.dataset.d;
       logDate = dd === 0 ? todayKey() : shiftKey(logDate, dd);
       render(); return;
+    }
+    if (act === 'prep') {
+      var pd = prepDay(todayKey());
+      pd[el.dataset.f] = !pd[el.dataset.f];
+      save(); renderKeep(); return;
+    }
+    if (act === 'preptoggle') { prepOpen = !prepOpen; renderKeep(); return; }
+    if (act === 'shop') {
+      ensurePrep();
+      var si = +el.dataset.i;
+      state.prep.shop[si] = !state.prep.shop[si];
+      save(); renderKeep(); return;
+    }
+    if (act === 'preplog') {
+      var pk = day(todayKey()), pst = prepDay(todayKey());
+      if (pst.logged) return;
+      var pl = prepPlan(todayKey());
+      [prepItem('chicken'), prepItem(pl.l), prepItem('veg')].forEach(function (x) {
+        pk.meals.lunch.push(x);
+      });
+      pst.logged = true;
+      save(); render(); toast('午餐已记入'); queueSync(); return;
+    }
+    if (act === 'prepsnack') {
+      var sk = day(todayKey()), sis = false;
+      sk.meals.snack.forEach(function (x) { if (x.name === '香蕉') sis = true; });
+      if (sis) { toast('已经记过运动前补能'); return; }
+      sk.meals.snack.push(prepItem('banana'));
+      sk.meals.snack.push(prepItem('bread'));
+      save(); render(); toast('已记入加餐'); queueSync(); return;
     }
     if (act === 'water') {
       var wk = day(todayKey());
