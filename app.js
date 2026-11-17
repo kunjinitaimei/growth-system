@@ -211,7 +211,6 @@
     study: blankStudy(),
     train: { ball: blankTrack(), lift: blankTrack(), history: [], coach: '' },
     expenses: { budget: 500, items: [] },
-    prep: { week: '', shop: [], days: {} },
     customFoods: [],
     sync: {
       repo: 'kunjinitaimei/personal-vault',
@@ -270,11 +269,6 @@
         category: String(it.category || '其他'), createdAt: it.createdAt || ''
       };
     });
-    var pr = (s && s.prep) || {};
-    out.prep = { week: '', shop: [], days: {} };
-    out.prep.week = typeof pr.week === 'string' ? pr.week : '';
-    out.prep.shop = (Array.isArray(pr.shop) ? pr.shop : []).map(function (x) { return !!x; });
-    out.prep.days = (pr.days && typeof pr.days === 'object') ? pr.days : {};
     out.customFoods = (s && s.customFoods) || [];
     return out;
   }
@@ -342,11 +336,12 @@
       state.days[k] = {
         type: 'training',
         meals: { breakfast: [], lunch: [], dinner: [], snack: [] },
-        water: 0, weight: null
+        photos: {}, water: 0, weight: null
       };
     }
     var d = state.days[k];
     d.meals = d.meals || {};
+    d.photos = d.photos || {};
     MEALS.forEach(function (m) { if (!d.meals[m.id]) d.meals[m.id] = []; });
     return d;
   }
@@ -368,82 +363,6 @@
   }
   function isAvoid(name) {
     return (state.profile.avoid || []).some(function (a) { return a && name.indexOf(a) > -1; });
-  }
-
-  /* ---------------- 备菜计划：一锅出两份 ---------------- */
-  var PREP_PORTION = {
-    rice: { n: '米饭（熟）', g: 250 },
-    potato: { n: '土豆（蒸）', g: 400 },
-    sweet: { n: '红薯（蒸）', g: 350 },
-    purple: { n: '紫薯（蒸）', g: 350 },
-    chicken: { n: '鸡胸肉（生）', g: 180 },
-    fish: { n: '巴沙鱼', g: 200 },
-    beef: { n: '牛肉（瘦）', g: 150 },
-    veg: { n: '西兰花', g: 200 },
-    banana: { n: '香蕉', g: 120 },
-    bread: { n: '白面包', g: 70 }
-  };
-  /* 周一 → 周日：午餐主食轮换，晚餐「蛋白 + 主食」轮换 */
-  var PREP_WEEK = [
-    { l: 'rice', d: ['chicken', 'potato'] },
-    { l: 'sweet', d: ['fish', 'rice'] },
-    { l: 'purple', d: ['chicken', 'rice'] },
-    { l: 'rice', d: ['beef', 'potato'] },
-    { l: 'sweet', d: ['fish', 'rice'] },
-    { l: 'potato', d: ['chicken', 'purple'] },
-    { l: 'rice', d: ['beef', 'sweet'] }
-  ];
-  var PREP_SHOP = [
-    ['鸡胸肉', '1.5 kg'], ['巴沙鱼', '400 g'], ['瘦牛肉', '300 g'],
-    ['鸡蛋', '18 个'], ['酸奶', '1.75 kg'], ['牛奶', '1.75 L'],
-    ['燕麦', '500 g'], ['大米', '1 kg'], ['薯类', '3 kg'],
-    ['蔬菜', '3 kg'], ['香蕉', '8 根'], ['面包', '500 g'], ['坚果', '150 g']
-  ];
-  var prepOpen = false;
-
-  function foodByName(n) {
-    var f = allFoods().filter(function (x) { return x.name === n; })[0];
-    return f || { name: n, kcal: 0, p: 0, c: 0, f: 0 };
-  }
-  function prepItem(key) {
-    var p = PREP_PORTION[key], f = foodByName(p.n), s = p.g / 100;
-    return {
-      name: p.n, g: p.g,
-      kcal: r1(f.kcal * s), p: r1(f.p * s), c: r1(f.c * s), f: r1(f.f * s)
-    };
-  }
-  function prepSum(list) {
-    var t = { kcal: 0, p: 0, c: 0, f: 0 };
-    list.forEach(function (x) {
-      t.kcal += x.kcal; t.p += x.p; t.c += x.c; t.f += x.f;
-    });
-    return { kcal: r0(t.kcal), p: r0(t.p), c: r0(t.c), f: r0(t.f) };
-  }
-  function prepPlan(k) { return PREP_WEEK[(parseKey(k || todayKey()).getDay() + 6) % 7]; }
-  function ensurePrep() {
-    if (!state.prep) state.prep = { week: '', shop: [], days: {} };
-    var w = weekStart(todayKey()), changed = false;
-    if (state.prep.week !== w) {
-      state.prep.week = w;
-      state.prep.shop = PREP_SHOP.map(function () { return false; });
-      changed = true;
-    }
-    if (state.prep.shop.length !== PREP_SHOP.length) {
-      var arr = state.prep.shop.slice(0, PREP_SHOP.length);
-      while (arr.length < PREP_SHOP.length) arr.push(false);
-      state.prep.shop = arr; changed = true;
-    }
-    if (changed) save();
-  }
-  function prepDay(k) {
-    ensurePrep();
-    k = k || todayKey();
-    if (!state.prep.days[k]) {
-      state.prep.days[k] = { made: false, packed: false, carried: false, logged: false };
-    }
-    var d = state.prep.days[k];
-    d.logged = !!d.logged;
-    return d;
   }
 
   /* ---------------- 训练数据：双轨游标 ---------------- */
@@ -795,6 +714,7 @@
       b.classList.toggle('on', b.dataset.tab === on);
     });
     window.scrollTo(0, 0);
+    hydratePhotos();
   }
 
   /* 局部更新时保住滚动位置，别让页面跳回顶部 */
@@ -802,6 +722,22 @@
     var y = window.scrollY || window.pageYOffset || 0;
     render();
     window.scrollTo(0, y);
+  }
+
+  var photoUrls = [], photoRenderNo = 0;
+  function hydratePhotos() {
+    photoUrls.forEach(function (url) { URL.revokeObjectURL(url); });
+    photoUrls = [];
+    var generation = ++photoRenderNo;
+    if (!window.MealPhotos) return;
+    document.querySelectorAll('img[data-photo]').forEach(function (img) {
+      window.MealPhotos.get(img.dataset.photo).then(function (record) {
+        if (generation !== photoRenderNo || !record || !record.blob) return;
+        var url = URL.createObjectURL(record.blob);
+        photoUrls.push(url);
+        img.src = url;
+      }).catch(function () { img.classList.add('photo-missing'); });
+    });
   }
 
   function head(eyebrow, title, right) {
@@ -942,18 +878,27 @@
             'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - p)) + '"/>' +
         '</svg>' +
         '<div class="ring-center">' +
-          '<div class="ring-num">' + (over ? '+' : '') + Math.abs(r0(left)) + '</div>' +
-          '<div class="ring-label">' + (over ? '千卡超出' : '千卡可吃') + '</div>' +
+          '<div class="ring-num">' + t.kcal + '</div>' +
+          '<div class="ring-label">今日已摄入 KCAL</div>' +
         '</div>' +
       '</div>' +
       '<div class="hero-meta">' +
-        '<div><span>已摄入</span><b>' + t.kcal + '</b></div>' +
-        '<div><span>目标</span><b>' + tg.kcal + '</b></div>' +
+        '<div><span>每日目标</span><b>' + tg.kcal + '<i>kcal</i></b></div>' +
+        '<div><span>' + (over ? '已超出' : '还可以吃') + '</span><b class="' + (over ? 'down' : '') + '">' + Math.abs(r0(left)) + '<i>kcal</i></b></div>' +
         '<div><span>蛋白质</span><b>' + r0(t.p) + '<i>g</i></b></div>' +
       '</div>' +
     '</section>';
 
-    s += prepCard(k);
+    var wl = d.water || 0;
+    s += '<section class="card water-card">' +
+      '<div class="water-read"><div><span>今日饮水</span><b>' + wl + '<i> / ' + WATER_GOAL + ' ml</i></b></div>' +
+        '<strong>' + Math.min(100, r0(wl / WATER_GOAL * 100)) + '%</strong></div>' +
+      '<div class="cups">' + cups(wl) + '</div>' +
+      '<div class="water-actions"><button class="ghost" data-act="water" data-d="-1">− 250 ml</button>' +
+        '<button class="solid" data-act="water" data-d="1">＋ 250 ml</button></div>' +
+    '</section>';
+
+    s += mealPhotoCards(k);
 
     s += '<section class="card">' +
       '<div class="card-head"><h2>三大营养素</h2><span class="hint">还差 ' + Math.max(0, r0(tg.p - t.p)) + 'g 蛋白</span></div>' +
@@ -962,105 +907,53 @@
       bar('脂肪', t.f, tg.f, 'var(--rust)') +
     '</section>';
 
-    s += '<section class="card"><div class="card-head"><h2>今天吃了什么</h2><span class="hint">点一行去加</span></div>' +
-      mealRows(k) + '</section>';
+    s += '<section class="card"><div class="card-head"><h2>加餐</h2><span class="hint">点一行手动添加</span></div>' +
+      mealRows(k, 'snack') + '</section>';
 
-    var wl = d.water || 0;
-    s += '<div class="grid2">' +
-      '<section class="card mini">' +
-        '<div class="mini-head"><span>饮水</span><b>' + (wl / 1000).toFixed(2).replace(/\.?0+$/, '') + 'L</b></div>' +
-        '<div class="cups">' + cups(wl) + '</div>' +
-        '<div class="mini-actions"><button class="ghost" data-act="water" data-d="-1">−</button>' +
-        '<button class="solid" data-act="water" data-d="1">+250</button></div>' +
-      '</section>' +
-      '<section class="card mini">' +
-        '<div class="mini-head"><span>体重</span><b>' + (d.weight || state.profile.weight) + '<i>kg</i></b></div>' +
-        '<div class="mini-sub">' + weightTrend() + '</div>' +
-        '<div class="mini-actions"><button class="solid full" data-act="weigh">记录体重</button></div>' +
-      '</section>' +
-    '</div>';
+    s += '<section class="card mini weight-card">' +
+      '<div class="mini-head"><span>今日体重</span><b>' + (d.weight || state.profile.weight) + '<i>kg</i></b></div>' +
+      '<div class="mini-sub">' + weightTrend() + '</div>' +
+      '<div class="mini-actions"><button class="ghost full" data-act="weigh">记录体重</button></div>' +
+    '</section>';
 
     s += '<section class="card"><div class="card-head"><h2>近 7 天</h2><span class="hint">热量 / 目标</span></div>' + weekBars() +
       '<div class="btns"><button class="ghost" data-act="openlog">每日记录</button>' +
       '<button class="ghost" data-act="openfoods">食物库</button></div>' +
     '</section>';
 
-    s += '<button class="fab-add" data-act="quickadd">＋ 记录吃了什么</button>';
+    s += '<button class="fab-add" data-act="quickadd">＋ 手动记录食物</button>';
     return s;
   }
 
-  function prepCard(k) {
-    var plan = prepPlan(k), st = prepDay(k);
-    var idx = (parseKey(k).getDay() + 6) % 7;
-    var next = PREP_WEEK[(idx + 1) % 7];
-    var lunch = [prepItem('chicken'), prepItem(plan.l), prepItem('veg')];
-    var din = [prepItem(plan.d[0]), prepItem(plan.d[1]), prepItem('veg')];
-    var tomorrow = [prepItem('chicken'), prepItem(next.l), prepItem('veg')];
-    var lt = prepSum(lunch), dt = prepSum(din);
-    var s = '<section class="card prep">' +
-      '<div class="card-head"><h2>今日午餐</h2>' +
-        '<span class="hint">' + lt.kcal + ' kcal</span></div>' +
-      '<div class="prep-line">' + lunch.map(function (x) {
-        return x.name.replace(/（.*?）/g, '') + ' <b>' + x.g + '</b>g';
-      }).join(' ') + '</div>' +
-      '<div class="prep-acts">' +
-        '<button class="pkey' + (st.made ? ' on' : '') + '" data-act="prep" data-f="made">做好</button>' +
-        '<button class="pkey' + (st.packed ? ' on' : '') + '" data-act="prep" data-f="packed">装盒</button>' +
-        '<button class="pkey' + (st.carried ? ' on' : '') + '" data-act="prep" data-f="carried">带走</button>' +
-      '</div>';
-
-    if (day(k).type === 'training') {
-      s += '<div class="prep-snack">' +
-        '<div><span>11:55 运动前</span><b>香蕉 1 根 ＋ 面包 2 片</b></div>' +
-        '<button class="ghost" data-act="prepsnack">记入加餐</button>' +
-      '</div>';
-    }
-
-    s += '<div class="prep-note">' +
-      '<span>今晚一锅出两份</span>' +
-      '晚餐 · ' + din.map(function (x) { return x.name.replace(/（.*?）/g, ''); }).join(' ＋ ') + '　<b>' + dt.kcal + '</b> kcal<br>' +
-      '明午 · ' + tomorrow.map(function (x) { return x.name.replace(/（.*?）/g, ''); }).join(' ＋ ') +
-    '</div>';
-
-    s += '<button class="solid full' + (st.logged ? ' done' : '') + '" data-act="preplog"' + (st.logged ? ' disabled' : '') + '>' +
-      (st.logged ? '已记入午餐 ' + lt.kcal + ' kcal' : '记入午餐') + '</button>';
-
-    s += '<button class="prep-more" data-act="preptoggle">本周备菜与采购 <i>' +
-      state.prep.shop.filter(Boolean).length + ' / ' + PREP_SHOP.length + '</i></button>';
-
-    if (prepOpen) s += prepTable(idx) + prepShop();
-
-    return s + '</section>';
-  }
-
-  function prepTable(idx) {
-    var out = '<div class="ptable">';
-    PREP_WEEK.forEach(function (row, i) {
-      var l = PREP_PORTION[row.l].n.replace(/（.*?）/g, '');
-      var d = row.d.map(function (x) { return PREP_PORTION[x].n.replace(/（.*?）/g, ''); }).join('＋');
-      out += '<div class="prow' + (i === idx ? ' on' : '') + '">' +
-        '<span class="pd">周' + DAY_CN[(i + 1) % 7] + '</span>' +
-        '<span class="pl">' + l + '</span>' +
-        '<span class="pn">' + d + '</span>' +
-      '</div>';
-    });
-    return out + '</div>';
-  }
-
-  function prepShop() {
-    var out = '<div class="pshop-head"><span>本周采购</span><i>按周重置</i></div>' +
-      '<div class="pshop">';
-    PREP_SHOP.forEach(function (x, i) {
-      out += '<button class="sitem' + (state.prep.shop[i] ? ' on' : '') + '" data-act="shop" data-i="' + i + '">' +
-        '<span>' + x[0] + '</span><i>' + x[1] + '</i></button>';
-    });
-    out += '</div><div class="prep-alert">断电超过 4 小时，熟食直接扔；午餐上下各放一个冰袋。</div>';
-    return out;
-  }
-
-  function mealRows(k) {
+  function mealPhotoCards(k) {
     var d = day(k);
-    return MEALS.map(function (m) {
+    var cards = MEALS.slice(0, 3).map(function (m) {
+      var items = d.meals[m.id] || [];
+      var mk = items.reduce(function (sum, it) { return sum + it.kcal; }, 0);
+      var photoId = d.photos[m.id];
+      return '<article class="meal-shot">' +
+        '<button class="shot-main" data-act="photo" data-meal="' + m.id + '" aria-label="' + m.name + (photoId ? '重拍估算' : '拍照估算') + '">' +
+          '<span class="shot-image">' + (photoId
+            ? '<img data-photo="' + esc(photoId) + '" alt="' + m.name + '照片">'
+            : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l1.4-2h7.2L17 7h3v12H4Z"/><circle cx="12" cy="13" r="3.5"/></svg>') + '</span>' +
+          '<span class="shot-name">' + m.name + '</span>' +
+          '<span class="shot-kcal">' + r0(mk) + ' <i>kcal</i></span>' +
+          '<span class="shot-action">' + (photoId ? '重拍估算' : '拍照估算') + '</span>' +
+        '</button>' +
+        '<div class="shot-foot"><span>' + (items.length ? items.length + ' 项食物' : '尚未记录') + '</span>' +
+          '<button data-act="add" data-meal="' + m.id + '">手动加</button></div>' +
+      '</article>';
+    }).join('');
+    return '<section class="card meal-photos">' +
+      '<div class="card-head"><h2>三餐拍照估算</h2><span class="hint">照片仅存本机</span></div>' +
+      '<div class="meal-shots">' + cards + '</div>' +
+      '<p class="note">不用称克重。拍完整餐，系统会估算食物克重和热量，确认后才记入。</p>' +
+    '</section>';
+  }
+
+  function mealRows(k, only) {
+    var d = day(k);
+    return MEALS.filter(function (m) { return !only || m.id === only; }).map(function (m) {
       var items = d.meals[m.id] || [];
       var mk = items.reduce(function (a, b) { return a + b.kcal; }, 0);
       var mp = items.reduce(function (a, b) { return a + b.p; }, 0);
@@ -1128,12 +1021,14 @@
       var mk = items.reduce(function (a, b) { return a + b.kcal; }, 0);
       var mp = items.reduce(function (a, b) { return a + b.p; }, 0);
       s += '<section class="card">' +
-        '<div class="meal-head"><div class="meal-t"><span class="micon">' + m.icon + '</span>' + m.name + '</div>' +
+        '<div class="meal-head"><div class="meal-t">' +
+          (d.photos[m.id] ? '<img class="log-photo" data-photo="' + esc(d.photos[m.id]) + '" alt="' + m.name + '照片">' : '<span class="micon">' + m.icon + '</span>') + m.name + '</div>' +
           '<div class="meal-k"><b>' + r0(mk) + '</b> kcal <i>' + r0(mp) + 'g 蛋白</i></div></div>' +
         (items.length ? '<ul class="items">' + items.map(function (it, i) {
           return '<li><div class="it-name">' + esc(it.name) +
+            (it.estimated ? '<em class="estimate-tag">估算</em>' : '') +
             (isAvoid(it.name) ? '<em class="tag">忌口</em>' : '') + '</div>' +
-            '<div class="it-num">' + it.g + 'g · ' + r0(it.kcal) + 'kcal · ' + r0(it.p) + 'g</div>' +
+            '<div class="it-num">' + (it.estimated ? '约 ' : '') + it.g + 'g · ' + r0(it.kcal) + 'kcal · ' + r0(it.p) + 'g</div>' +
             '<button class="del" data-act="del" data-meal="' + m.id + '" data-i="' + i + '">×</button></li>';
         }).join('') + '</ul>' : '<div class="empty">还没记</div>') +
         '<button class="add-row" data-act="add" data-meal="' + m.id + '">＋ 添加食物</button>' +
@@ -1499,7 +1394,11 @@
   var mask = document.getElementById('mask');
   var sheet = document.getElementById('sheet');
   function openSheet(html) { sheet.innerHTML = html; sheet.hidden = false; mask.hidden = false; requestAnimationFrame(function () { sheet.classList.add('show'); }); }
-  function closeSheet() { sheet.classList.remove('show'); setTimeout(function () { sheet.hidden = true; mask.hidden = true; sheet.innerHTML = ''; }, 180); }
+  function closeSheet() {
+    clearPendingPhoto();
+    sheet.classList.remove('show');
+    setTimeout(function () { sheet.hidden = true; mask.hidden = true; sheet.innerHTML = ''; }, 180);
+  }
 
   var curFood = null, curMeal = 'breakfast', curGrams = 100;
 
@@ -1542,6 +1441,143 @@
     });
   }
   function nameOf(id) { return (MEALS.filter(function (m) { return m.id === id; })[0] || { name: '加餐' }).name; }
+
+  /* ---------------- 三餐照片估算 ---------------- */
+  var pendingPhoto = null, pendingPhotoUrl = null;
+
+  function clearPendingPhoto() {
+    if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+    pendingPhotoUrl = null;
+    pendingPhoto = null;
+  }
+
+  function handlePhotoFile(file) {
+    if (!file) return;
+    var input = document.getElementById('meal-photo-input');
+    var meal = (input && input.dataset.meal) || 'breakfast';
+    window.MealPhotos.compress(file).then(function (blob) {
+      clearPendingPhoto();
+      var photo = {
+        id: todayKey() + '-' + meal, meal: meal, blob: blob,
+        items: [], detections: [], status: 'loading', error: ''
+      };
+      pendingPhoto = photo;
+      pendingPhotoUrl = URL.createObjectURL(blob);
+      drawPhotoReview();
+      return window.MealPhotos.recognize(blob, function (stage) {
+        if (pendingPhoto !== photo) return;
+        photo.status = stage;
+        var text = document.getElementById('photo-status-text');
+        if (text) text.textContent = photoStatus(stage);
+      }).then(function (detections) {
+        if (pendingPhoto !== photo) return;
+        photo.detections = detections;
+        photo.items = window.MealPhotos.estimate(detections, allFoods());
+        photo.status = 'ready';
+        if (!photo.items.length) photo.error = '没有可靠识别出可估算的食物。请在下方选择食物，克重会按常见份量估算。';
+        else if (photo.items.some(function (it) { return it.lowConfidence; })) photo.error = '主食物识别置信度较低，请检查是否正确；克重和热量均为估算。';
+        drawPhotoReview();
+      });
+    }).catch(function (err) {
+      if (pendingPhoto) {
+        pendingPhoto.status = 'ready';
+        pendingPhoto.error = '本地识别未完成。可重拍，或在下方选择食物后确认。';
+        drawPhotoReview();
+      } else {
+        toast(String(err.message || '照片读取失败'));
+      }
+      if (window.console && console.error) console.error('Meal photo recognition:', err);
+    });
+  }
+
+  function photoStatus(stage) {
+    if (stage === 'running') return '正在识别食物，并按照片占比估算克重…';
+    return '首次识别需加载本地模型，之后无需联网或 API Key…';
+  }
+
+  function photoTotals() {
+    var t = { kcal: 0, p: 0, c: 0, f: 0 };
+    if (!pendingPhoto) return t;
+    pendingPhoto.items.forEach(function (it) {
+      t.kcal += it.kcal; t.p += it.p; t.c += it.c; t.f += it.f;
+    });
+    return { kcal: r0(t.kcal), p: r1(t.p), c: r1(t.c), f: r1(t.f) };
+  }
+
+  function drawPhotoReview() {
+    if (!pendingPhoto) return;
+    var photo = pendingPhoto, busy = photo.status !== 'ready', total = photoTotals();
+    var html = '<div class="sh-grab"></div>' +
+      '<div class="sh-head"><div><div class="sh-name">' + nameOf(photo.meal) + ' · 照片估算</div>' +
+        '<div class="sh-sub">本机识别 · 照片不上传 · 无需 API Key</div></div>' +
+        '<button class="sh-close" data-act="closesheet" aria-label="关闭">×</button></div>' +
+      '<img class="review-photo" src="' + pendingPhotoUrl + '" alt="待识别的' + nameOf(photo.meal) + '">';
+
+    if (busy) {
+      html += '<div class="recognition-status"><span class="scan-line"></span><span id="photo-status-text">' + photoStatus(photo.status) + '</span></div>';
+    } else {
+      if (photo.error) html += '<div class="photo-warning">' + esc(photo.error) + '</div>';
+      html += '<div class="estimate-list">' + (photo.items.length ? photo.items.map(function (it, i) {
+        return '<div class="estimate-row">' +
+          '<div class="estimate-name"><b>' + esc(it.name) + '</b><span>估算</span></div>' +
+          '<label class="estimate-g"><input type="number" min="5" step="5" inputmode="numeric" data-photo-g="' + i + '" value="' + it.g + '" aria-label="' + esc(it.name) + '估算克重"><i>g</i></label>' +
+          '<strong data-photo-kcal="' + i + '">' + r0(it.kcal) + ' kcal</strong>' +
+          '<button class="del" data-act="photoremove" data-i="' + i + '" aria-label="移除' + esc(it.name) + '">×</button>' +
+        '</div>';
+      }).join('') : '<div class="empty">还没有可确认的食物</div>') + '</div>' +
+      '<div class="photo-add"><select id="photo-food" aria-label="选择要添加的食物">' +
+        '<option value="">食物不对？在这里重选</option>' + allFoods().map(function (f) {
+          return '<option value="' + esc(f.id) + '">' + esc(f.name) + ' · 约 ' + window.MealPhotos.commonGrams(f) + 'g</option>';
+        }).join('') + '</select><button class="ghost" data-act="photoadd">添加</button></div>';
+    }
+
+    html += '<div class="photo-total"><span>整餐估算 <i id="photo-total">' + total.kcal + ' kcal</i></span>' +
+      '<span>蛋白 <b id="photo-protein">' + r0(total.p) + 'g</b></span></div>' +
+      '<p class="note">克重按照片食物占比和常见份量粗略估算，不是称重。油、酱料和被遮住的食材可能漏算；可以直接确认，也可以修改。</p>' +
+      '<button class="solid big" id="photo-confirm" data-act="confirmphoto"' + (busy || !photo.items.length ? ' disabled' : '') + '>' +
+        (busy ? '正在本机识别…' : '确认并记入' + nameOf(photo.meal) + ' · ' + total.kcal + ' kcal') + '</button>';
+    openSheet(html);
+  }
+
+  function updatePhotoTotals() {
+    var total = photoTotals();
+    var totalEl = document.getElementById('photo-total');
+    var proteinEl = document.getElementById('photo-protein');
+    var confirmEl = document.getElementById('photo-confirm');
+    if (totalEl) totalEl.textContent = total.kcal + ' kcal';
+    if (proteinEl) proteinEl.textContent = r0(total.p) + 'g';
+    if (confirmEl && pendingPhoto) {
+      confirmEl.textContent = '确认并记入' + nameOf(pendingPhoto.meal) + ' · ' + total.kcal + ' kcal';
+      confirmEl.disabled = !pendingPhoto.items.length;
+    }
+    if (pendingPhoto) pendingPhoto.items.forEach(function (it, i) {
+      var el = sheet.querySelector('[data-photo-kcal="' + i + '"]');
+      if (el) el.textContent = r0(it.kcal) + ' kcal';
+    });
+  }
+
+  function confirmPhoto() {
+    if (!pendingPhoto || pendingPhoto.status !== 'ready' || !pendingPhoto.items.length) return;
+    var photo = pendingPhoto;
+    var avoided = photo.items.filter(function (it) { return isAvoid(it.name); });
+    if (avoided.length && !confirm('照片里有你的忌口「' + avoided[0].name + '」，仍然要记吗？')) return;
+    var button = document.getElementById('photo-confirm');
+    if (button) { button.disabled = true; button.textContent = '正在保存…'; }
+    window.MealPhotos.put(photo.id, photo.blob).then(function () {
+      var d = day(todayKey());
+      d.photos[photo.meal] = photo.id;
+      d.meals[photo.meal] = (d.meals[photo.meal] || []).filter(function (it) { return it.photoId !== photo.id; });
+      var additions = photo.items.map(function (it) {
+        return Object.assign({}, it, { photoId: photo.id, estimated: true });
+      });
+      d.meals[photo.meal] = d.meals[photo.meal].concat(additions);
+      save(); tab = 'today'; closeSheet(); render(); queueSync();
+      toast(nameOf(photo.meal) + '已记入 · 数值为估算');
+    }).catch(function () {
+      if (button) { button.disabled = false; button.textContent = '重试保存'; }
+      toast('照片保存失败，请检查浏览器存储权限');
+    });
+  }
 
   function openCustom() {
     openSheet('<div class="sh-grab"></div>' +
@@ -1667,35 +1703,24 @@
       logDate = dd === 0 ? todayKey() : shiftKey(logDate, dd);
       render(); return;
     }
-    if (act === 'prep') {
-      var pd = prepDay(todayKey());
-      pd[el.dataset.f] = !pd[el.dataset.f];
-      save(); renderKeep(); return;
+    if (act === 'photo') {
+      var photoInput = document.getElementById('meal-photo-input');
+      photoInput.dataset.meal = el.dataset.meal;
+      photoInput.value = '';
+      photoInput.click(); return;
     }
-    if (act === 'preptoggle') { prepOpen = !prepOpen; renderKeep(); return; }
-    if (act === 'shop') {
-      ensurePrep();
-      var si = +el.dataset.i;
-      state.prep.shop[si] = !state.prep.shop[si];
-      save(); renderKeep(); return;
+    if (act === 'confirmphoto') { confirmPhoto(); return; }
+    if (act === 'photoadd') {
+      if (!pendingPhoto) return;
+      var selected = document.getElementById('photo-food').value;
+      if (!selected) { toast('先选择要添加的食物'); return; }
+      pendingPhoto.items.push(window.MealPhotos.makeItem(findFood(selected)));
+      drawPhotoReview(); return;
     }
-    if (act === 'preplog') {
-      var pk = day(todayKey()), pst = prepDay(todayKey());
-      if (pst.logged) return;
-      var pl = prepPlan(todayKey());
-      [prepItem('chicken'), prepItem(pl.l), prepItem('veg')].forEach(function (x) {
-        pk.meals.lunch.push(x);
-      });
-      pst.logged = true;
-      save(); render(); toast('午餐已记入'); queueSync(); return;
-    }
-    if (act === 'prepsnack') {
-      var sk = day(todayKey()), sis = false;
-      sk.meals.snack.forEach(function (x) { if (x.name === '香蕉') sis = true; });
-      if (sis) { toast('已经记过运动前补能'); return; }
-      sk.meals.snack.push(prepItem('banana'));
-      sk.meals.snack.push(prepItem('bread'));
-      save(); render(); toast('已记入加餐'); queueSync(); return;
+    if (act === 'photoremove') {
+      if (!pendingPhoto) return;
+      pendingPhoto.items.splice(+el.dataset.i, 1);
+      drawPhotoReview(); return;
     }
     if (act === 'water') {
       var wk = day(todayKey());
@@ -1711,11 +1736,14 @@
       state.profile.weight = r1(pendingWeight);
       save(); closeSheet(); render(); toast('已记录体重'); queueSync(); return;
     }
-    if (act === 'quickadd') { tab = 'foods'; render(); focusFood(); return; }
+    if (act === 'quickadd') { logDate = todayKey(); tab = 'foods'; render(); focusFood(); return; }
     if (act === 'openlog') { logDate = todayKey(); tab = 'log'; render(); return; }
     if (act === 'openfoods') { tab = 'foods'; render(); return; }
     if (act === 'backtoday') { tab = 'today'; render(); return; }
-    if (act === 'add') { tab = 'foods'; window.__mealPick = el.dataset.meal; render(); focusFood(); return; }
+    if (act === 'add') {
+      if (tab === 'today') logDate = todayKey();
+      tab = 'foods'; window.__mealPick = el.dataset.meal; render(); focusFood(); return;
+    }
     if (act === 'del') {
       var dk = day(logDate);
       dk.meals[el.dataset.meal].splice(+el.dataset.i, 1);
@@ -1863,6 +1891,10 @@
   mask.addEventListener('click', closeSheet);
 
   document.addEventListener('change', function (e) {
+    if (e.target.id === 'meal-photo-input') {
+      handlePhotoFile(e.target.files && e.target.files[0]);
+      return;
+    }
     if (e.target.id === 'sync-auto') {
       state.sync.auto = e.target.checked;
       save();
@@ -1872,6 +1904,18 @@
   });
 
   document.addEventListener('input', function (e) {
+    var photoGrams = e.target.getAttribute && e.target.getAttribute('data-photo-g');
+    if (photoGrams !== null && photoGrams !== undefined && pendingPhoto) {
+      var grams = num(e.target.value, 0), index = +photoGrams;
+      if (grams > 0 && pendingPhoto.items[index]) {
+        var old = pendingPhoto.items[index];
+        var next = window.MealPhotos.makeItem(findFood(old.foodId), grams);
+        next.confidence = old.confidence;
+        pendingPhoto.items[index] = next;
+        updatePhotoTotals();
+      }
+      return;
+    }
     if (e.target.id === 'ex-input') { expenseText = e.target.value; return; }
     if (e.target.id === 'ex-question') { expenseQuestion = e.target.value; return; }
     if (e.target.id === 'foodQ') {

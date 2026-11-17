@@ -1,11 +1,13 @@
-/* 离线缓存：让加到主屏幕后没网也能打开 */
-var CACHE = 'growth-v8';
+/* 核心页面离线可用；大模型首次识别时懒加载并缓存。 */
+var CACHE = 'growth-v9';
 var FILES = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './foods.js',
+  './meal-photos.js',
+  './food-recognition.worker.js',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -22,15 +24,39 @@ self.addEventListener('activate', function (e) {
   }).then(function () { return self.clients.claim(); }));
 });
 
+function networkFirst(request, navigation) {
+  return fetch(request).then(function (res) {
+    if (res.ok) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function (c) { c.put(request, copy); });
+    }
+    return res;
+  }).catch(function () {
+    return caches.match(request).then(function (cached) {
+      if (cached) return cached;
+      if (navigation) return caches.match('./index.html');
+      return Response.error();
+    });
+  });
+}
+
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request).then(function (res) {
-      var copy = res.clone();
-      caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
-      return res;
-    }).catch(function () {
-      return caches.match(e.request).then(function (r) { return r || caches.match('./index.html'); });
-    })
-  );
+  var url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.indexOf('/models/') > -1) {
+    e.respondWith(caches.match(e.request).then(function (cached) {
+      return cached || fetch(e.request).then(function (res) {
+        if (res.ok) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+        }
+        return res;
+      });
+    }));
+    return;
+  }
+
+  e.respondWith(networkFirst(e.request, e.request.mode === 'navigate'));
 });
