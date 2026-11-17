@@ -774,6 +774,7 @@
   var logDate = todayKey();
   var foodQ = '', foodCat = '全部';
   var expenseText = '', expenseQuestion = '', expenseAnswer = '';
+  var expenseOpen = {};
   var SUB_OF = { log: 'today', foods: 'today' };
   var mTab = /[?&]tab=(\w+)/.exec(location.search);
   if (mTab && ['train', 'today', 'study', 'expense', 'log', 'foods', 'me'].indexOf(mTab[1]) > -1) tab = mTab[1];
@@ -1233,25 +1234,29 @@
     var sorted = state.expenses.items.slice().sort(function (a, b) {
       return a.date === b.date ? String(b.createdAt).localeCompare(String(a.createdAt)) : (a.date < b.date ? 1 : -1);
     });
-    s += '<section class="card"><div class="card-head"><h2>按日明细</h2><span class="hint">共 ' + sorted.length + ' 笔 · 点一笔修改</span></div>';
+    s += '<section class="card" id="ex-detail"><div class="card-head"><h2>按日明细</h2><span class="hint">共 ' + sorted.length + ' 笔 · 点日期展开</span></div>';
     if (!sorted.length) s += '<div class="empty">还没有支出记录。</div>';
-    var lastDate = '', dayItems = [];
-    function flushDay() {
-      if (!dayItems.length) return '';
-      var html = '<div class="ex-day"><div class="ex-day-head"><span>' + dateLabel(lastDate) + '</span><b>¥' + money(expenseSum(dayItems)) + '</b></div>';
-      html += dayItems.map(function (it) {
-        return '<button class="ex-item" data-act="expedit" data-id="' + esc(it.id) + '">' +
-          '<span class="ex-item-main"><b>' + esc(it.desc) + '</b><small>' + esc(it.category) + '</small></span>' +
-          '<span class="ex-item-num">¥' + money(it.amount) + '</span><span class="ex-item-go">›</span></button>';
-      }).join('') + '</div>';
-      dayItems = [];
-      return html;
-    }
+    var groups = [], lastDate = '', cur = null;
     sorted.forEach(function (it) {
-      if (it.date !== lastDate) { s += flushDay(); lastDate = it.date; }
-      dayItems.push(it);
+      if (it.date !== lastDate) { lastDate = it.date; cur = { date: it.date, items: [] }; groups.push(cur); }
+      cur.items.push(it);
     });
-    s += flushDay() + '</section>';
+    s += groups.map(function (g, i) {
+      var open = expenseOpen[g.date] === undefined ? (i === 0) : !!expenseOpen[g.date];
+      return '<div class="ex-day' + (open ? ' open' : '') + '" id="exd-' + g.date + '">' +
+        '<button class="ex-day-head" data-act="extoggle" data-k="' + g.date + '">' +
+          '<span class="ex-day-title">' + dateLabel(g.date) + '<i>' + g.items.length + ' 笔</i></span>' +
+          '<b>¥' + money(expenseSum(g.items)) + '</b>' +
+          '<span class="ex-day-arrow">' + (open ? '−' : '+') + '</span>' +
+        '</button>' +
+        (open ? '<div class="ex-day-body">' + g.items.map(function (it) {
+          return '<button class="ex-item" data-act="expedit" data-id="' + esc(it.id) + '">' +
+            '<span class="ex-item-main"><b>' + esc(it.desc) + '</b><small>' + esc(it.category) + '</small></span>' +
+            '<span class="ex-item-num">¥' + money(it.amount) + '</span><span class="ex-item-go">›</span></button>';
+        }).join('') + '</div>' : '') +
+      '</div>';
+    }).join('');
+    s += '</section>';
     return s;
   }
 
@@ -1261,9 +1266,10 @@
     var max = Math.max.apply(Math, values.concat([1]));
     return '<div class="ex-bars">' + values.map(function (v, i) {
       var k = shiftKey(start, i), isToday = k === todayKey();
-      return '<div class="ex-barcol' + (isToday ? ' now' : '') + '"><span class="ex-bar-val">' + (v ? money(v) : '') + '</span>' +
+      return '<button class="ex-barcol' + (isToday ? ' now' : '') + '" data-act="expday" data-k="' + k + '" title="查看 ' + dateLabel(k) + ' 明细">' +
+        '<span class="ex-bar-val">' + (v ? money(v) : '') + '</span>' +
         '<div class="ex-bar-track"><span style="height:' + (v / max * 100) + '%"></span></div>' +
-        '<span class="ex-bar-day">' + DAY_CN[(i + 1) % 7] + '</span></div>';
+        '<span class="ex-bar-day">' + DAY_CN[(i + 1) % 7] + '</span></button>';
     }).join('') + '</div>';
   }
 
@@ -1769,6 +1775,23 @@
     if (act === 'deepseek') { window.open('https://chat.deepseek.com/', '_blank'); return; }
 
     /* 支出 */
+    if (act === 'extoggle') {
+      var tk = el.dataset.k;
+      var block = el.closest('.ex-day');
+      var isOpen = block && block.classList.contains('open');
+      expenseOpen[tk] = !isOpen;
+      renderKeep(); return;
+    }
+    if (act === 'expday') {
+      var dk2 = el.dataset.k;
+      expenseOpen[dk2] = true;
+      renderKeep();
+      setTimeout(function () {
+        var t = document.getElementById('exd-' + dk2);
+        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 30);
+      return;
+    }
     if (act === 'exparse') {
       var exInput = document.getElementById('ex-input');
       expenseText = exInput ? exInput.value.trim() : expenseText.trim();
